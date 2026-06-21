@@ -1,1 +1,4 @@
-{ "version": "2026.06.21-1", "notes": "PWA 化：app icon + manifest + Service Worker（含 Three.js 離線快取）+ 更新通知" }
+{
+    "version":  "2026.06.21-2",
+    "notes":  "新增社群分享 OG 圖與 meta 標籤"
+}
