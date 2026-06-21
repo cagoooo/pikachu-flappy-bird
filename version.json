@@ -1,0 +1,1 @@
+{ "version": "2026.06.21-1", "notes": "PWA 化：app icon + manifest + Service Worker（含 Three.js 離線快取）+ 更新通知" }
