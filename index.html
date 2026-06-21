@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>皮卡丘天空大冒險 ⚡ Pika Sky Adventure</title>
+<style>
+  :root{ --ink:#2b2b3a; }
+  *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  html,body{ height:100%; }
+  body{
+    font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+    background:radial-gradient(circle at 50% 20%,#fff6c9,#ffe07a 35%,#f5b942 100%);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-height:100dvh; overflow:hidden; color:var(--ink);
+  }
+  #wrap{ position:relative; width:min(96vw,480px); aspect-ratio:480/720;
+    border-radius:24px; overflow:hidden;
+    box-shadow:0 24px 60px rgba(60,40,0,.35), 0 0 0 6px rgba(255,255,255,.6), inset 0 0 0 2px rgba(255,255,255,.4); }
+  canvas{ display:block; width:100%; height:100%; touch-action:none; cursor:pointer; }
+  footer{ margin-top:14px; font-size:13px; color:#7a5a14; text-align:center; opacity:.9; }
+  footer a{ color:#6b4f10; font-weight:700; text-decoration:none; }
+  footer a:hover{ text-decoration:underline; }
+  .hint{ font-size:12px; color:#8a6a1a; margin-top:4px; }
+</style>
+</head>
+<body>
+  <div id="wrap"><canvas id="game"></canvas></div>
+  <footer>
+    ⚡ 皮卡丘天空大冒險 · 課堂教學小遊戲<br>
+    Made with ❤️ by <a href="https://www.smes.tyc.edu.tw/modules/tadnews/page.php?ncsn=11&nsn=16#a5" target="_blank" rel="noopener">阿凱老師</a>｜桃園市龍潭區石門國民小學
+    <div class="hint">點擊畫面 / 空白鍵 讓皮卡丘起飛</div>
+  </footer>
+
+<script>
+(() => {
+  "use strict";
+  const cv = document.getElementById("game");
+  const ctx = cv.getContext("2d");
+  const W = 480, H = 720;          // 邏輯畫布（直式，適合手機）
+  cv.width = W; cv.height = H;
+
+  // ---------- 場景（每 10 分換一個，6 個循環）----------
+  const SCENES = [
+    { name:"晴空",  top:"#7ec8ff", bot:"#d7f0ff", pipe:"#5bb24a", pipeDark:"#3f8a33", star:0 },
+    { name:"黃昏",  top:"#ff9a6b", bot:"#ffe2a8", pipe:"#c8723f", pipeDark:"#9c5126", star:0 },
+    { name:"星夜",  top:"#1c2a5e", bot:"#3b4d8f", pipe:"#6a5acd", pipeDark:"#473a99", star:1 },
+    { name:"極光",  top:"#0f3d3a", bot:"#1f7a6f", pipe:"#2bd4a8", pipeDark:"#1f9a7c", star:1 },
+    { name:"櫻花",  top:"#ffc2e0", bot:"#ffe9f3", pipe:"#e57aa8", pipeDark:"#b85684", star:0 },
+    { name:"深海",  top:"#0a3a6b", bot:"#1e7fc2", pipe:"#19a0c9", pipeDark:"#10708f", star:1 },
+  ];
+
+  // ---------- 難度（依品質清單建議：寧可偏簡單）----------
+  const GAP = 240;          // 垂直間距 ≈ 畫布高 33%
+  const PIPE_W = 78;
+  const SPAWN_X = 300;      // 水平間距
+  const GRAVITY = 0.46;
+  const FLAP = -8.4;
+  const BASE_SPEED = 2.55;
+  const PIKA_R = 26;        // 視覺半徑
+  const HIT_R = PIKA_R * 0.78; // 碰撞半徑（寬容）
+
+  // ---------- 狀態 ----------
+  const S = { MENU:0, PLAY:1, OVER:2 };
+  let state = S.MENU;
+  let pika, pipes, score, best, frame, speed, sceneIdx, prevSceneIdx;
+  let transition = 0;           // 場景轉場計時（>0 表示轉場中，給無敵緩衝）
+  let shake = 0;
+  best = +(localStorage.getItem("pika_flappy_best") || 0);
+  const clouds = Array.from({length:6}, () => spawnCloud(Math.random()*W));
+
+  function spawnCloud(x){ return { x, y:40+Math.random()*(H-260), s:0.3+Math.random()*0.5, r:18+Math.random()*26 }; }
+
+  function reset(){
+    pika = { x:W*0.30, y:H*0.45, vy:0, rot:0, wing:0 };
+    pipes = [];
+    score = 0; frame = 0; speed = BASE_SPEED;
+    sceneIdx = 0; prevSceneIdx = 0; transition = 0; shake = 0;
+    for (let i=0;i<3;i++) addPipe(W + 140 + i*SPAWN_X);
+  }
+  function addPipe(x){
+    const margin = 90;
+    const gy = margin + Math.random()*(H - GAP - margin*2 - 120) + 60;
+    pipes.push({ x, gapY:gy, passed:false });
+  }
+
+  // ---------- 音效（WebAudio 合成，免外部檔）----------
+  let AC = null;
+  function ac(){ if(!AC){ try{ AC = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } return AC; }
+  function beep(freq, dur, type="sine", vol=0.18, slideTo=null){
+    const a = ac(); if(!a) return;
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = type; o.frequency.value = freq;
+    if(slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, a.currentTime+dur);
+    g.gain.setValueAtTime(vol, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime+dur);
+    o.connect(g); g.connect(a.destination);
+    o.start(); o.stop(a.currentTime+dur);
+  }
+  const sndFlap = () => beep(520, 0.10, "triangle", 0.14, 720);
+  const sndScore = () => { beep(740,0.09,"square",0.12); setTimeout(()=>beep(990,0.10,"square",0.12),70); };
+  const sndHit = () => { beep(180,0.22,"sawtooth",0.22,70); };
+  const sndScene = () => { [523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,0.14,"sine",0.16),i*80)); };
+
+  // ---------- 輸入 ----------
+  function flap(){
+    if(ac() && ac().state==="suspended") ac().resume();
+    if(state===S.MENU){ reset(); state=S.PLAY; return; }
+    if(state===S.PLAY){ pika.vy = FLAP; pika.wing = 1; sndFlap(); return; }
+    if(state===S.OVER){ state=S.MENU; }
+  }
+  cv.addEventListener("pointerdown", e=>{ e.preventDefault(); flap(); });
+  window.addEventListener("keydown", e=>{ if(e.code==="Space"||e.code==="ArrowUp"){ e.preventDefault(); flap(); } });
+
+  // ---------- 更新 ----------
+  function update(dt){
+    clouds.forEach(c=>{ c.x -= c.s*speed*dt*0.4; if(c.x < -60){ c.x = W+40; c.y=40+Math.random()*(H-260);} });
+    if(state!==S.PLAY){ pika && (pika.wing*=0.9); return; }
+    frame += dt;
+    if(transition>0) transition -= dt;
+
+    pika.vy += GRAVITY*dt;
+    pika.y  += pika.vy*dt;
+    pika.rot = Math.max(-0.5, Math.min(1.1, pika.vy*0.05));
+    pika.wing = Math.max(0, pika.wing - 0.08*dt);
+
+    pipes.forEach(p=>{ p.x -= speed*dt; });
+    // 計分
+    pipes.forEach(p=>{
+      if(!p.passed && p.x + PIPE_W < pika.x){
+        p.passed = true; score++; sndScore();
+        // 里程碑：每 10 分換場景
+        if(score % 10 === 0){
+          prevSceneIdx = sceneIdx;
+          sceneIdx = (sceneIdx+1) % SCENES.length;
+          transition = 40;            // 約 0.66s 緩衝無敵
+          shake = 8; sndScene();
+        }
+        speed = BASE_SPEED + Math.min(1.4, score*0.02); // 微幅加速，有上限
+      }
+    });
+    // 回收 + 補新柱
+    if(pipes.length && pipes[0].x < -PIPE_W){ pipes.shift(); addPipe(pipes[pipes.length-1].x + SPAWN_X); }
+
+    // 碰撞（轉場緩衝期間無敵，防慣性冤死）
+    if(transition<=0){
+      if(pika.y + HIT_R > H-40 || pika.y - HIT_R < 0){ return die(); }
+      for(const p of pipes){
+        if(pika.x+HIT_R > p.x && pika.x-HIT_R < p.x+PIPE_W){
+          if(pika.y-HIT_R < p.gapY || pika.y+HIT_R > p.gapY+GAP){ return die(); }
+        }
+      }
+    } else {
+      // 緩衝期間仍夾在地板/天花板內，避免穿出
+      pika.y = Math.max(HIT_R, Math.min(H-40-HIT_R, pika.y));
+    }
+    if(shake>0) shake -= dt;
+  }
+  function die(){
+    sndHit(); shake = 14;
+    best = Math.max(best, score);
+    localStorage.setItem("pika_flappy_best", best);
+    state = S.OVER;
+  }
+
+  // ---------- 繪圖 ----------
+  function lerpHex(a,b,t){
+    const pa=parseInt(a.slice(1),16), pb=parseInt(b.slice(1),16);
+    const ra=pa>>16, ga=(pa>>8)&255, ba=pa&255, rb=pb>>16, gb=(pb>>8)&255, bb=pb&255;
+    const r=Math.round(ra+(rb-ra)*t), g=Math.round(ga+(gb-ga)*t), bl=Math.round(ba+(bb-ba)*t);
+    return `rgb(${r},${g},${bl})`;
+  }
+  function curScene(){
+    const cur = SCENES[sceneIdx], prv = SCENES[prevSceneIdx];
+    const t = transition>0 ? 1-(transition/40) : 1;
+    return {
+      top: lerpHex(prv.top, cur.top, t),
+      bot: lerpHex(prv.bot, cur.bot, t),
+      pipe: cur.pipe, pipeDark: cur.pipeDark, star: cur.star, name: cur.name,
+    };
+  }
+  function drawBG(sc){
+    const g = ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0, sc.top); g.addColorStop(1, sc.bot);
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+    if(sc.star){
+      ctx.fillStyle = "rgba(255,255,255,.85)";
+      for(let i=0;i<40;i++){ const x=(i*97%W), y=(i*53%(H-200)); ctx.globalAlpha=0.3+0.5*Math.abs(Math.sin(i+frame*0.02)); ctx.fillRect(x,y,2,2); }
+      ctx.globalAlpha=1;
+    }
+    // 飄浮雲朵（光暈質感）
+    clouds.forEach(c=>{
+      ctx.save(); ctx.globalAlpha=0.85;
+      ctx.fillStyle="rgba(255,255,255,.92)";
+      blob(c.x,c.y,c.r); blob(c.x+c.r*0.9,c.y+6,c.r*0.8); blob(c.x-c.r*0.9,c.y+8,c.r*0.7);
+      ctx.restore();
+    });
+  }
+  function blob(x,y,r){ ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); }
+
+  function drawPipe(p, sc){
+    const grd = ctx.createLinearGradient(p.x,0,p.x+PIPE_W,0);
+    grd.addColorStop(0, sc.pipeDark); grd.addColorStop(0.5, sc.pipe); grd.addColorStop(1, sc.pipeDark);
+    const cap = 26;
+    const roundRect=(x,y,w,h,r)=>{ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); };
+    ctx.fillStyle = grd;
+    // 上柱
+    roundRect(p.x, -10, PIPE_W, p.gapY+10, 10); ctx.fill();
+    roundRect(p.x-6, p.gapY-cap, PIPE_W+12, cap, 8); ctx.fill();
+    // 下柱
+    roundRect(p.x, p.gapY+GAP, PIPE_W, H, 10); ctx.fill();
+    roundRect(p.x-6, p.gapY+GAP, PIPE_W+12, cap, 8); ctx.fill();
+    // 高光
+    ctx.fillStyle="rgba(255,255,255,.22)";
+    ctx.fillRect(p.x+8, 0, 8, p.gapY-cap);
+    ctx.fillRect(p.x+8, p.gapY+GAP+cap, 8, H);
+  }
+
+  function drawPika(x,y,rot,wing){
+    ctx.save(); ctx.translate(x,y); ctx.rotate(rot);
+    // 陰影
+    ctx.fillStyle="rgba(0,0,0,.12)"; ctx.beginPath(); ctx.ellipse(0,PIKA_R+6,PIKA_R*0.9,7,0,0,Math.PI*2); ctx.fill();
+    // 耳朵
+    const ear=(s)=>{ ctx.save(); ctx.rotate(s*0.5);
+      ctx.fillStyle="#f9d423"; ctx.beginPath(); ctx.moveTo(0,-PIKA_R*0.6); ctx.lineTo(s*10,-PIKA_R*1.9); ctx.lineTo(s*22,-PIKA_R*0.7); ctx.closePath(); ctx.fill();
+      ctx.fillStyle="#2b2b2b"; ctx.beginPath(); ctx.moveTo(s*7,-PIKA_R*1.55); ctx.lineTo(s*14,-PIKA_R*1.85); ctx.lineTo(s*17,-PIKA_R*1.35); ctx.closePath(); ctx.fill();
+      ctx.restore(); };
+    ear(-1); ear(1);
+    // 翅膀（飛行時拍動）
+    ctx.fillStyle="#f6c945";
+    const wf = -PIKA_R*0.2 - wing*PIKA_R*0.7;
+    ctx.beginPath(); ctx.ellipse(-PIKA_R*0.7, wf, 14, 9, -0.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(PIKA_R*0.7, wf, 14, 9, 0.5, 0, Math.PI*2); ctx.fill();
+    // 身體（立體漸層）
+    const bg = ctx.createRadialGradient(-8,-8,4,0,0,PIKA_R+4);
+    bg.addColorStop(0,"#fff08a"); bg.addColorStop(0.6,"#ffd31a"); bg.addColorStop(1,"#e8a900");
+    ctx.fillStyle=bg; ctx.beginPath(); ctx.arc(0,0,PIKA_R,0,Math.PI*2); ctx.fill();
+    // 臉頰
+    ctx.fillStyle="#ff5d5d"; ctx.beginPath(); ctx.arc(-PIKA_R*0.55,4,6,0,Math.PI*2); ctx.arc(PIKA_R*0.55,4,6,0,Math.PI*2); ctx.fill();
+    // 眼睛
+    ctx.fillStyle="#2b2b2b"; ctx.beginPath(); ctx.arc(-9,-6,5,0,Math.PI*2); ctx.arc(9,-6,5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(-7.5,-7.5,1.8,0,Math.PI*2); ctx.arc(10.5,-7.5,1.8,0,Math.PI*2); ctx.fill();
+    // 嘴
+    ctx.strokeStyle="#7a4a00"; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(0,2,4,0.1*Math.PI,0.9*Math.PI); ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawGround(){
+    ctx.fillStyle="rgba(60,40,0,.18)"; ctx.fillRect(0,H-40,W,40);
+    ctx.fillStyle="rgba(255,255,255,.15)"; ctx.fillRect(0,H-40,W,4);
+  }
+
+  function panel(txt, sub, sub2){
+    ctx.fillStyle="rgba(0,0,0,.35)"; ctx.fillRect(0,0,W,H);
+    ctx.textAlign="center";
+    ctx.fillStyle="#fff"; ctx.font="bold 40px 'Microsoft JhengHei',sans-serif";
+    ctx.fillText(txt, W/2, H*0.4);
+    ctx.font="bold 22px 'Microsoft JhengHei',sans-serif";
+    if(sub) ctx.fillText(sub, W/2, H*0.4+44);
+    if(sub2){ ctx.font="18px 'Microsoft JhengHei',sans-serif"; ctx.fillStyle="rgba(255,255,255,.9)"; ctx.fillText(sub2, W/2, H*0.4+80); }
+  }
+
+  function drawHUD(sc){
+    ctx.textAlign="left";
+    // 分數（大、不被切）
+    ctx.font="bold 54px 'Microsoft JhengHei',sans-serif";
+    ctx.lineWidth=6; ctx.strokeStyle="rgba(0,0,0,.4)"; ctx.fillStyle="#fff";
+    ctx.textAlign="center";
+    ctx.strokeText(score, W/2, 86); ctx.fillText(score, W/2, 86);
+    // 場景名 + 最佳（右上，留 padding）
+    ctx.textAlign="right"; ctx.font="bold 16px 'Microsoft JhengHei',sans-serif";
+    ctx.fillStyle="rgba(255,255,255,.95)"; ctx.strokeStyle="rgba(0,0,0,.3)"; ctx.lineWidth=3;
+    ctx.strokeText(`場景：${sc.name}`, W-16, 30); ctx.fillText(`場景：${sc.name}`, W-16, 30);
+    ctx.strokeText(`最佳 ${best}`, W-16, 52);    ctx.fillText(`最佳 ${best}`, W-16, 52);
+  }
+
+  function render(){
+    const sc = curScene();
+    ctx.save();
+    if(shake>0){ ctx.translate((Math.random()-.5)*shake, (Math.random()-.5)*shake); }
+    drawBG(sc);
+    if(state!==S.MENU) pipes.forEach(p=>drawPipe(p,sc));
+    drawGround();
+    if(pika) drawPika(pika.x, pika.y, pika.rot, pika.wing);
+    if(state===S.PLAY) drawHUD(sc);
+    ctx.restore();
+
+    if(state===S.MENU){
+      drawHUD(sc);
+      panel("皮卡丘天空大冒險", "點擊畫面讓皮卡丘起飛", `最佳紀錄：${best}`);
+    }
+    if(state===S.OVER){
+      panel("遊戲結束", `得分 ${score}　最佳 ${best}`, "點擊畫面 再玩一次");
+    }
+    // 轉場閃光
+    if(transition>0){ ctx.fillStyle=`rgba(255,255,255,${transition/40*0.5})`; ctx.fillRect(0,0,W,H); }
+  }
+
+  // ---------- 主迴圈（delta 校正，鎖 60fps 步進）----------
+  let last = performance.now();
+  function loop(now){
+    let dt = (now-last)/16.67; last = now;
+    dt = Math.min(dt, 2.5);
+    update(dt); render();
+    requestAnimationFrame(loop);
+  }
+  reset(); state = S.MENU;
+  requestAnimationFrame(loop);
+
+  // ---------- 自動駕駛（自我驗證用：?autopilot=1）----------
+  if(new URLSearchParams(location.search).get("autopilot")==="1"){
+    if(state===S.MENU) flap();
+    // 逐幀 autopilot：每幀瞄準最近 gap 中央，落到中央下緣才輕拍，穩定通關
+    (function ap(){
+      if(state===S.OVER) flap();
+      if(state===S.PLAY){
+        const next = pipes.find(p=>p.x+PIPE_W > pika.x-PIKA_R) || pipes[0];
+        const targetY = next.gapY + GAP*0.5;
+        if(pika.y > targetY) pika.vy = FLAP;
+      }
+      requestAnimationFrame(ap);
+    })();
+  }
+})();
+</script>
+</body>
+</html>
