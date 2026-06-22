@@ -97,6 +97,22 @@
   body.hc #meta, body.hc #combo, body.hc #items{ -webkit-text-stroke:1px #000; }
   body.hc .chip{ font-size:16px; }
   body.hc .lb-list li{ font-size:16.5px; }
+  /* ---- 排行榜分頁 ---- */
+  .lb-tabs{ display:flex; gap:6px; margin-bottom:8px; }
+  .lbtab{ flex:1; border:none; border-radius:8px; padding:6px 4px; font:inherit; font-weight:800;
+    font-size:13px; cursor:pointer; background:rgba(255,255,255,.12); color:#fff; }
+  .lbtab.on{ background:linear-gradient(135deg,#ffe14d,#ff9d2e); color:#3a2700; }
+  .lb-list li .cls{ font-size:12px; opacity:.8; margin:0 6px; flex:none; }
+  #classInput{ width:96px; flex:none !important; }
+  .btn-lite{ border:1px solid rgba(255,255,255,.4); background:rgba(255,255,255,.12); color:#fff;
+    border-radius:999px; padding:10px 18px; font:inherit; font-weight:800; font-size:15px; cursor:pointer;
+    margin-top:8px; text-decoration:none; display:inline-block; }
+  /* ---- 橫幅（Boss / 提示）---- */
+  #banner{ position:absolute; top:38%; left:50%; transform:translate(-50%,-50%) scale(.8);
+    font-weight:900; font-size:clamp(26px,6.5vw,54px); color:#fff; text-align:center;
+    text-shadow:0 4px 0 rgba(0,0,0,.3), 0 0 30px rgba(180,80,255,.75); opacity:0;
+    transition:opacity .25s, transform .25s; pointer-events:none; white-space:nowrap; z-index:6; }
+  #banner.show{ opacity:1; transform:translate(-50%,-50%) scale(1); }
 </style>
 <script type="importmap">
 { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
@@ -110,6 +126,7 @@
     <div id="score">0</div>
     <div id="combo"></div>
     <div id="items"></div>
+    <div id="banner"></div>
     <div id="meta"><span class="scene" id="sceneName">晴空</span><br>最佳 <span id="best">0</span></div>
   </div>
 
@@ -135,9 +152,15 @@
     </div></div>
     <div class="lb" id="lbStart">
       <div class="lb-title">🏆 班級排行榜</div>
+      <div class="lb-tabs" id="tabsStart">
+        <button class="lbtab on" data-tab="top">總榜</button>
+        <button class="lbtab" data-tab="today">今日</button>
+        <button class="lbtab" data-tab="class">我班</button>
+      </div>
       <ol class="lb-list" id="lbStartList"><li class="lb-empty">載入中…</li></ol>
     </div>
     <button class="cta" id="startBtn">點擊開始 ▶</button>
+    <a class="btn-lite" id="posterLink" href="assets/qr-poster.png" target="_blank" rel="noopener">📋 班級海報（掃碼玩）</a>
   </div>
 
   <div class="overlay hidden" id="overScreen">
@@ -145,13 +168,20 @@
     <div class="big">得分 <span id="finalScore">0</span>　最佳 <span id="finalBest">0</span></div>
     <div class="sub" id="overTip">再接再厲！</div>
     <div class="submit-row" id="submitRow">
-      <input id="nameInput" maxlength="12" placeholder="輸入暱稱上榜" autocomplete="off">
-      <button id="submitBtn" class="btn-go">上傳分數</button>
+      <input id="nameInput" maxlength="12" placeholder="暱稱" autocomplete="off">
+      <input id="classInput" maxlength="8" placeholder="班級" autocomplete="off">
+      <button id="submitBtn" class="btn-go">上傳</button>
     </div>
     <div class="lb" id="lbOver">
       <div class="lb-title">🏆 班級排行榜</div>
+      <div class="lb-tabs" id="tabsOver">
+        <button class="lbtab on" data-tab="top">總榜</button>
+        <button class="lbtab" data-tab="today">今日</button>
+        <button class="lbtab" data-tab="class">我班</button>
+      </div>
       <ol class="lb-list" id="lbOverList"><li class="lb-empty">載入中…</li></ol>
     </div>
+    <button class="btn-lite" id="shareBtn">📸 下載成績卡分享</button>
     <button class="cta" id="restartBtn">再玩一次 ↻</button>
   </div>
 
@@ -308,7 +338,7 @@ function makePipe(x){
   lastGapY = gy;
   g.userData.gapY = gy; g.userData.passed = false;
   // 障礙變化：分數高 / 挑戰難度時，部分柱子上下擺動
-  const moving = (SET.diff==="hard" && score>=6) || score>=12;
+  const moving = bossActive || (SET.diff==="hard" && score>=6) || score>=12;
   g.userData.osc = (moving && Math.random()<0.5) ? { amp:0.7+Math.random()*0.9, w:1.0+Math.random()*0.8, ph:Math.random()*6.28 } : null;
   const mkCol = (cy, h) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(PIPE_R, PIPE_R, h, 20), pipeMat);
     m.position.set(0, cy, 0); m.castShadow = true; m.receiveShadow = true; return m; };
@@ -423,6 +453,8 @@ let state = ST.MENU;
 let vy=0, score=0, frame=0, speed=BASE_SPEED;
 let sceneIdx=0, trans=0, transFrom=0, transTo=0;
 let combo=0, invincT=0, dblT=0, shieldOn=false;
+let playStartMs=0, lastPlaySec=0;
+let bossActive=false, bossPipesLeft=0, bossMesh=null, bossT=0;
 let best = +(localStorage.getItem("pika3d_best")||0);
 
 const $ = id => document.getElementById(id);
@@ -484,20 +516,48 @@ function reset(){
 
 function start(){
   if(ac() && ac().state==="suspended") ac().resume();
-  reset(); state=ST.PLAY;
+  reset(); state=ST.PLAY; playStartMs = performance.now();
   $("startScreen").classList.add("hidden");
   $("overScreen").classList.add("hidden");
   startBGM();
 }
+// ===================== 橫幅提示 =====================
+let bannerTimer=null;
+function banner(txt, ms){
+  const el=$("banner"); el.textContent=txt; el.classList.add("show");
+  clearTimeout(bannerTimer); bannerTimer=setTimeout(()=>el.classList.remove("show"), ms||1400);
+}
+// ===================== Boss 關（每 50 分）=====================
+function startBoss(){
+  bossActive=true; bossPipesLeft=10; bossT=0;
+  if(!bossMesh){
+    bossMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(2.2,0),
+      new THREE.MeshStandardMaterial({ color:0x3a2a5a, emissive:0x7b3aff, emissiveIntensity:0.5, roughness:0.4 }));
+    scene.add(bossMesh);
+  }
+  bossMesh.visible=true; bossMesh.position.set(3, 4.5, -7);
+  banner("⚡ 雷雲 Boss 出現！", 1600); sScene();
+}
+function endBoss(){
+  bossActive=false;
+  if(bossMesh) bossMesh.visible=false;
+  score += 15; $("score").textContent = score;
+  spawnItem(PX + 5, pika.position.y);   // 獎勵道具
+  burst(PX, pika.position.y, 0xffe14d, 22, 6);
+  banner("🎉 Boss 擊破！+15", 1600); sItem();
+}
 function die(){
   sHit(); state=ST.OVER;
+  lastPlaySec = Math.round((performance.now()-playStartMs)/1000);
+  bossActive=false; if(bossMesh) bossMesh.visible=false;
   burst(pika.position.x, pika.position.y, 0xff7777, 16, 5);
   best = Math.max(best, score); localStorage.setItem("pika3d_best", best);
   $("finalScore").textContent = score; $("finalBest").textContent = best;
   $("best").textContent = best;
   $("overTip").textContent = score>=30 ? "太厲害了！⚡⚡⚡" : score>=10 ? "不錯喔，再挑戰看看！" : "再接再厲！";
-  const inp=$("nameInput"); if(inp){ inp.value = myNick; inp.placeholder="輸入暱稱上榜"; }
-  const btn=$("submitBtn"); if(btn){ btn.disabled=false; btn.textContent="上傳分數"; }
+  const inp=$("nameInput"); if(inp){ inp.value = myNick; inp.placeholder="暱稱"; }
+  const ci=$("classInput"); if(ci){ ci.value = myClass; ci.placeholder="班級"; }
+  const btn=$("submitBtn"); if(btn){ btn.disabled=false; btn.textContent="上傳"; }
   $("overScreen").classList.remove("hidden");
   loadLB();
 }
@@ -537,36 +597,96 @@ $("toggleChips").addEventListener("click", e=>{ const b=e.target.closest(".chip"
   if(k==="hc") applyHC(); markChips(); });
 applyHC(); markChips();
 
-// ===================== 班級排行榜 =====================
+// ===================== 班級排行榜 + 成績卡 =====================
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyem_i12Ix2iHf2gjXZ1T5UocFynqkmdiQQ7aBIKqV1R4RB5AgG8UAoFRqj-0gGntFD/exec";
 let myNick = localStorage.getItem("pika3d_nick") || "";
+let myClass = localStorage.getItem("pika3d_class") || "";
+let lastLB = { top:[], today:[] };
+let lbTab = "top";
 function esc(s){ return String(s).replace(/[<>&]/g,""); }
-function renderLB(listEl, top){
+function entriesFor(tab){
+  if(tab==="today") return lastLB.today||[];
+  if(tab==="class") return (lastLB.top||[]).filter(e=> e.cls && e.cls===myClass);
+  return lastLB.top||[];
+}
+function renderLB(listEl, entries){
   if(!listEl) return;
-  if(!top || !top.length){ listEl.innerHTML = '<li class="lb-empty">還沒有人上榜，當第一名吧！</li>'; return; }
-  listEl.innerHTML = top.map((e,i)=>{
+  if(!entries || !entries.length){
+    const msg = lbTab==="class" ? (myClass?("「"+esc(myClass)+"」還沒有人上榜"):"在結算輸入班級即可看本班") : "還沒有人上榜，當第一名吧！";
+    listEl.innerHTML = '<li class="lb-empty">'+msg+'</li>'; return;
+  }
+  listEl.innerHTML = entries.slice(0,15).map((e,i)=>{
     const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'.';
-    const me = (e.name===myNick) ? ' class="me"' : '';
-    return `<li${me}><span class="rank">${medal}</span><span class="nm">${esc(e.name)}</span><span class="sc">${parseInt(e.score,10)||0}</span></li>`;
+    const me = (e.name===myNick && (!e.cls||!myClass||e.cls===myClass)) ? ' class="me"' : '';
+    const cls = e.cls ? `<span class="cls">${esc(e.cls)}</span>` : '';
+    return `<li${me}><span class="rank">${medal}</span><span class="nm">${esc(e.name)}</span>${cls}<span class="sc">${parseInt(e.score,10)||0}</span></li>`;
   }).join('');
 }
-function loadLB(){
-  fetch(GAS_API_URL).then(r=>r.json()).then(d=>{
-    renderLB($("lbStartList"), d.top); renderLB($("lbOverList"), d.top);
-  }).catch(()=>{
-    [$("lbStartList"),$("lbOverList")].forEach(el=>{ if(el) el.innerHTML='<li class="lb-empty">排行榜暫時無法連線</li>'; });
-  });
+function showLB(){
+  const ents = entriesFor(lbTab);
+  renderLB($("lbStartList"), ents); renderLB($("lbOverList"), ents);
+  document.querySelectorAll(".lbtab").forEach(b=>b.classList.toggle("on", b.dataset.tab===lbTab));
 }
+function loadLB(){
+  fetch(GAS_API_URL).then(r=>r.json()).then(d=>{ lastLB={ top:d.top||[], today:d.today||[] }; showLB(); })
+  .catch(()=>{ [$("lbStartList"),$("lbOverList")].forEach(el=>{ if(el) el.innerHTML='<li class="lb-empty">排行榜暫時無法連線</li>'; }); });
+}
+["tabsStart","tabsOver"].forEach(id=>{ const el=$(id); if(el) el.addEventListener("click", e=>{
+  e.stopPropagation(); const b=e.target.closest(".lbtab"); if(!b) return; lbTab=b.dataset.tab; showLB(); }); });
+["classInput","shareBtn","posterLink"].forEach(id=>{ const el=$(id); if(el) el.addEventListener("click", e=>e.stopPropagation()); });
 function submitScore(){
-  const inp = $("nameInput"); let name = (inp.value||"").trim().slice(0,12);
+  const inp=$("nameInput"), ci=$("classInput");
+  let name=(inp.value||"").trim().slice(0,12);
+  let cls=(ci.value||"").trim().slice(0,8);
   if(!name){ inp.focus(); inp.placeholder="請先輸入暱稱！"; return; }
-  myNick = name; localStorage.setItem("pika3d_nick", name);
-  const btn = $("submitBtn"); btn.disabled = true; btn.textContent = "上傳中…";
-  const q = "?action=add&name="+encodeURIComponent(name)+"&score="+encodeURIComponent(score);
+  myNick=name; myClass=cls; localStorage.setItem("pika3d_nick",name); localStorage.setItem("pika3d_class",cls);
+  const btn=$("submitBtn"); btn.disabled=true; btn.textContent="上傳中…";
+  const q="?action=add&name="+encodeURIComponent(name)+"&class="+encodeURIComponent(cls)+"&score="+encodeURIComponent(score)+"&sec="+encodeURIComponent(lastPlaySec);
   fetch(GAS_API_URL+q).then(r=>r.json()).then(d=>{
-    btn.textContent = "已上榜 ✓";
-    renderLB($("lbOverList"), d.top); renderLB($("lbStartList"), d.top);
-  }).catch(()=>{ btn.disabled=false; btn.textContent="上傳失敗，重試"; });
+    btn.textContent = (d.ok===false) ? "分數異常未收錄" : "已上榜 ✓";
+    lastLB={ top:d.top||[], today:d.today||[] }; showLB();
+  }).catch(()=>{ btn.disabled=false; btn.textContent="重試"; });
+}
+$("shareBtn").addEventListener("click", e=>{ e.stopPropagation(); shareCard(); });
+function drawFace(x,cx,cy,s){
+  const S=(ax,ay)=>[cx+(ax-500)*s, cy+(ay-540)*s];
+  const tri=(pts,c)=>{ x.fillStyle=c; x.beginPath(); pts.forEach((p,i)=>{const q=S(p[0],p[1]); i?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1]);}); x.closePath(); x.fill(); };
+  const el=(a,b,c,e,col)=>{ const p=S(a,b),q=S(c,e); x.fillStyle=col; x.beginPath(); x.ellipse((p[0]+q[0])/2,(p[1]+q[1])/2,Math.abs(q[0]-p[0])/2,Math.abs(q[1]-p[1])/2,0,0,7); x.fill(); };
+  const Y="#"+((SKINS[SET.skin]||SKINS.pika).body).toString(16).padStart(6,"0");
+  tri([[450,360],[388,95],[520,330]],Y); tri([[388,95],[432,120],[452,210]],"#2b2b2b");
+  tri([[550,360],[612,95],[480,330]],Y); tri([[612,95],[568,120],[548,210]],"#2b2b2b");
+  el(232,300,768,800,Y); el(360,470,452,562,"#2b2b2b"); el(548,470,640,562,"#2b2b2b");
+  el(404,486,438,520,"#fff"); el(592,486,626,520,"#fff");
+  el(316,580,418,672,"#ff5a5a"); el(582,580,684,672,"#ff5a5a"); el(484,556,516,584,"#2b2b2b");
+}
+function shareCard(){
+  const C=document.createElement("canvas"); C.width=1080; C.height=1080; const x=C.getContext("2d");
+  const g=x.createLinearGradient(0,0,0,1080); g.addColorStop(0,"#aee3ff"); g.addColorStop(1,"#6ebefa");
+  x.fillStyle=g; x.fillRect(0,0,1080,1080);
+  drawFace(x,540,330,0.42);
+  x.textAlign="center";
+  x.fillStyle="#fff"; x.strokeStyle="rgba(20,30,60,.45)"; x.lineWidth=9;
+  x.font="900 74px 'Microsoft JhengHei',sans-serif"; x.strokeText("皮卡丘天空大冒險",540,610); x.fillText("皮卡丘天空大冒險",540,610);
+  x.fillStyle="#26406e"; x.font="800 50px 'Microsoft JhengHei',sans-serif";
+  x.fillText((myNick||"我")+(myClass?("（"+myClass+"）"):"")+" 的飛行成績",540,690);
+  x.fillStyle="#ffe14d"; x.strokeStyle="rgba(20,30,60,.5)"; x.lineWidth=12;
+  x.font="900 210px 'Microsoft JhengHei',sans-serif"; x.strokeText(String(score),540,880); x.fillText(String(score),540,880);
+  x.fillStyle="#3a2700"; x.font="800 44px 'Microsoft JhengHei',sans-serif";
+  x.fillText("你能贏過我嗎？快來挑戰！",540,955);
+  x.fillStyle="#1b2a4a"; x.font="700 32px 'Microsoft JhengHei',sans-serif";
+  x.fillText("cagoooo.github.io/pikachu-flappy-bird",540,1010);
+  x.fillText("阿凱老師｜桃園市龍潭區石門國民小學",540,1052);
+  C.toBlob(b=>{
+    if(!b) return;
+    try{
+      const f=new File([b],"我的皮卡丘成績.png",{type:"image/png"});
+      if(navigator.canShare && navigator.canShare({files:[f]})){
+        navigator.share({files:[f], title:"皮卡丘天空大冒險", text:"我拿了 "+score+" 分！"}).catch(()=>{}); return;
+      }
+    }catch(e){}
+    const a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download="我的皮卡丘成績.png"; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+  },"image/png");
 }
 loadLB();
 
@@ -587,6 +707,9 @@ function update(dt){
     if(wx.dir>0 && m.position.y > 9){ m.position.y = -8; m.position.x=(Math.random()-0.5)*26; }
   }); }
 
+  // Boss 雷雲動畫
+  if(bossMesh && bossMesh.visible){ bossT+=dt; bossMesh.rotation.y+=dt*0.8;
+    bossMesh.position.y = 4.5 + Math.sin(bossT*2)*0.5; bossMesh.position.x += (1-bossMesh.position.x)*Math.min(1,dt*1.2); }
   // 粒子
   for(let i=parts.length-1;i>=0;i--){ const p=parts[i]; const v=p.userData.v;
     p.position.x += v.x*dt; p.position.y += v.y*dt; p.position.z += v.z*dt; v.y -= 9*dt;
@@ -624,6 +747,8 @@ function update(dt){
       if(combo>0 && combo%5===0) burst(PX, pika.position.y, 0xff5ad6, 14, 4);
       if(score%10===0){ setScene((sceneIdx+1)%SCENES.length, false); trans=0; sScene(); }
       speed = BASE_SPEED + Math.min(2.0, score*0.03);
+      if(bossActive){ bossPipesLeft--; if(bossPipesLeft<=0) endBoss(); }
+      else if(score>0 && score%50===0) startBoss();
     }
   });
   if(pipes.length && pipes[0].position.x < -16){
@@ -696,7 +821,7 @@ if(new URLSearchParams(location.search).get("autopilot")==="1"){
 /* ===== Service Worker 註冊 + 版本更新通知列 ===== */
 (function(){
   if(!('serviceWorker' in navigator)) return;
-  var APP_VERSION='2026.06.22-2';   // 與 sw.js / version.json 同步
+  var APP_VERSION='2026.06.22-3';   // 與 sw.js / version.json 同步
   var reloaded=false;
   function showBar(waiting){
     if(document.getElementById('sw-update-bar')) return;
