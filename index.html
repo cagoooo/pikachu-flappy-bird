@@ -149,6 +149,7 @@
       <button class="chip" data-tg="bgm">🎵 音樂</button>
       <button class="chip" data-tg="sfx">🔊 音效</button>
       <button class="chip" data-tg="hc">🔆 高對比</button>
+      <button class="chip" data-tg="low">⚡ 順暢(低畫質)</button>
     </div></div>
     <div class="lb" id="lbStart">
       <div class="lb-title">🏆 班級排行榜</div>
@@ -220,6 +221,7 @@ const SET = {
   bgm:  localStorage.getItem("pika3d_bgm") !== "0",
   sfx:  localStorage.getItem("pika3d_sfx") !== "0",
   hc:   localStorage.getItem("pika3d_hc") === "1",
+  low:  localStorage.getItem("pika3d_low") === "1",
 };
 
 // 物理參數（依難度填入）
@@ -397,8 +399,8 @@ for(let i=0;i<40;i++){
 }
 function applyWeather(){
   const wx = SCENES[sceneIdx].wx;
-  weather.forEach(m=>{
-    if(!wx){ m.visible = false; return; }
+  weather.forEach((m, idx)=>{
+    if(!wx || (SET.low && idx >= 15)){ m.visible = false; return; }
     m.visible = true; m.material.color.set(wx.color); m.scale.setScalar(wx.size*8);
   });
 }
@@ -586,16 +588,47 @@ function markChips(){
   $("toggleChips").querySelector('[data-tg="bgm"]').classList.toggle("on", SET.bgm);
   $("toggleChips").querySelector('[data-tg="sfx"]').classList.toggle("on", SET.sfx);
   $("toggleChips").querySelector('[data-tg="hc"]').classList.toggle("on", SET.hc);
+  $("toggleChips").querySelector('[data-tg="low"]').classList.toggle("on", SET.low);
 }
 function applyHC(){ document.body.classList.toggle("hc", SET.hc); }
+function applyPerformanceMode(){
+  if (SET.low) {
+    renderer.shadowMap.enabled = false;
+    sun.castShadow = false;
+    renderer.setPixelRatio(1.0);
+    renderer.setSize(innerWidth, innerHeight);
+    if (scene.fog) {
+      scene.fog.near = 1000;
+      scene.fog.far = 2000;
+    }
+  } else {
+    renderer.shadowMap.enabled = true;
+    sun.castShadow = true;
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    if (scene.fog) {
+      scene.fog.near = 14;
+      scene.fog.far = 34;
+    }
+  }
+  scene.traverse(child => {
+    if (child.isMesh && child.material) {
+      child.material.needsUpdate = true;
+    }
+  });
+  applyWeather();
+}
 $("diffChips").addEventListener("click", e=>{ const b=e.target.closest(".chip"); if(!b) return; e.stopPropagation();
   SET.diff=b.dataset.diff; localStorage.setItem("pika3d_diff",SET.diff); applyDifficulty(); markChips(); });
 $("skinChips").addEventListener("click", e=>{ const b=e.target.closest(".chip"); if(!b) return; e.stopPropagation();
   SET.skin=b.dataset.skin; localStorage.setItem("pika3d_skin",SET.skin); applySkin(); setGlow(); markChips(); });
 $("toggleChips").addEventListener("click", e=>{ const b=e.target.closest(".chip"); if(!b) return; e.stopPropagation();
-  const k=b.dataset.tg; SET[k]=!SET[k]; localStorage.setItem("pika3d_"+k, SET[k]?(k==="hc"?"1":"1"):(k==="hc"?"0":"0"));
-  if(k==="hc") applyHC(); markChips(); });
-applyHC(); markChips();
+  const k=b.dataset.tg; SET[k]=!SET[k]; localStorage.setItem("pika3d_"+k, SET[k]?"1":"0");
+  if(k==="hc") applyHC();
+  if(k==="low") applyPerformanceMode();
+  markChips();
+});
+applyHC(); applyPerformanceMode(); markChips();
 
 // ===================== 班級排行榜 + 成績卡 =====================
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyem_i12Ix2iHf2gjXZ1T5UocFynqkmdiQQ7aBIKqV1R4RB5AgG8UAoFRqj-0gGntFD/exec";
@@ -793,10 +826,43 @@ function renderEffectsIdle(dt){ /* 選單/結算時道具粒子已在上方處�
 // ===================== 主迴圈 =====================
 const clock = new THREE.Clock();
 let started=false;
+let fpsLastTime = performance.now();
+let fpsFrames = 0;
+let lowPerfSeconds = 0;
+
 function loop(){
   const dt = Math.min(clock.getDelta(), 0.05);
   update(dt);
   renderer.render(scene, camera);
+  
+  // FPS 動態偵測
+  if (state === ST.PLAY && document.visibilityState === "visible" && !SET.low) {
+    fpsFrames++;
+    const now = performance.now();
+    if (now >= fpsLastTime + 1000) {
+      const fps = Math.round((fpsFrames * 1000) / (now - fpsLastTime));
+      fpsFrames = 0;
+      fpsLastTime = now;
+      
+      if (fps < 45) {
+        lowPerfSeconds++;
+        if (lowPerfSeconds >= 3) {
+          SET.low = true;
+          localStorage.setItem("pika3d_low", "1");
+          applyPerformanceMode();
+          markChips();
+          banner("⚠️ 偵測到裝置效能較低，已自動切換至低畫質順暢模式", 3500);
+        }
+      } else {
+        lowPerfSeconds = 0;
+      }
+    }
+  } else {
+    fpsFrames = 0;
+    fpsLastTime = performance.now();
+    lowPerfSeconds = 0;
+  }
+
   requestAnimationFrame(loop);
   if(!started){ started=true; $("loading").style.display="none"; }
 }
@@ -821,7 +887,7 @@ if(new URLSearchParams(location.search).get("autopilot")==="1"){
 /* ===== Service Worker 註冊 + 版本更新通知列 ===== */
 (function(){
   if(!('serviceWorker' in navigator)) return;
-  var APP_VERSION='2026.06.22-3';   // 與 sw.js / version.json 同步
+  var APP_VERSION='2026.06.22-4';   // 與 sw.js / version.json 同步
   var reloaded=false;
   function showBar(waiting){
     if(document.getElementById('sw-update-bar')) return;
