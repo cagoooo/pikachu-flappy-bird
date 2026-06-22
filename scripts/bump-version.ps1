@@ -5,8 +5,11 @@ $root = Split-Path -Parent $PSScriptRoot
 $enc  = New-Object System.Text.UTF8Encoding($false)
 $today = Get-Date -Format "yyyy.MM.dd"
 $vp = Join-Path $root "version.json"; $seq = 1
-if (Test-Path $vp) { $old=(Get-Content $vp -Raw|ConvertFrom-Json).version
-  if ($old -match "^$([regex]::Escape($today))-(\d+)$") { $seq=[int]$Matches[1]+1 } }
+if (Test-Path $vp) {
+  $raw = [System.IO.File]::ReadAllText($vp, [System.Text.Encoding]::UTF8)  # 必用 UTF-8 讀，否則中文 notes 讀壞 JSON
+  $old = ($raw | ConvertFrom-Json).version
+  if ($old -match "^$([regex]::Escape($today))-(\d+)$") { $seq=[int]$Matches[1]+1 }
+}
 $ver = "$today-$seq"
 [System.IO.File]::WriteAllText($vp, ([ordered]@{version=$ver;notes=$Notes}|ConvertTo-Json), $enc)
 foreach ($f in @(@("sw.js","const BUILD_VERSION = '[^']*';","const BUILD_VERSION = '$ver';"),
