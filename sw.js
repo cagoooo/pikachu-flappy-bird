@@ -1,4 +1,4 @@
-const BUILD_VERSION = '2026.06.23-6';      // 每次部署改它（或跑 bump-version.ps1）
+const BUILD_VERSION = '2026.06.23-7';      // 每次部署改它（或跑 bump-version.ps1）
 const CACHE = 'pika3d-' + BUILD_VERSION;
 const THREE_CDN = 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 const PRECACHE = [

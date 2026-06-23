@@ -115,6 +115,29 @@
   #loading{ position:fixed; inset:0; z-index:20; display:flex; align-items:center; justify-content:center;
     background:#070a18; color:#ffe14d; font-size:20px; font-weight:800; letter-spacing:1px; }
 
+  /* ---- iOS Safari 安裝彈窗 ---- */
+  .ios-install-overlay {
+    position: fixed; inset: 0; z-index: 999;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0, 0, 0, 0.65); backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px); padding: 20px;
+    pointer-events: auto;
+  }
+  .ios-install-overlay.hidden { display: none !important; }
+  .ios-install-card {
+    background: rgba(12, 18, 38, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 20px; padding: 24px; max-width: 320px; width: 100%;
+    text-align: center; color: #fff;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  }
+  .ios-install-card h3 {
+    font-size: 18px; font-weight: 900; color: #ffe14d; margin-bottom: 12px;
+  }
+  .ios-install-card p {
+    font-size: 14px; font-weight: 700; line-height: 1.6; color: #e0e8ff; margin-bottom: 20px;
+  }
+
   /* ---- 班級排行榜 ---- */
   .lb{ background:rgba(12, 18, 38, 0.65); border:1px solid rgba(255,255,255,.11);
     border-radius:20px; padding:16px; margin:8px 0; width:100%; box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.08), 0 12px 30px rgba(0, 0, 0, 0.3); }
@@ -228,7 +251,12 @@
   }
 </style>
 <script type="importmap">
-{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
 </script>
 </head>
 <body>
@@ -284,6 +312,7 @@
             <button class="chip" data-tg="sfx">🔊 音效</button>
             <button class="chip" data-tg="hc">🔆 高對比</button>
             <button class="chip" data-tg="low">⚡ 順暢(低畫質)</button>
+            <button class="chip" id="btnLang">🌐 EN</button>
           </div>
         </div>
         <button class="cta" id="startBtn" style="width: 100%;">點擊開始 ▶</button>
@@ -300,6 +329,7 @@
           <ol class="lb-list" id="lbStartList"><li class="lb-empty">載入中…</li></ol>
         </div>
         <a class="btn-lite" id="posterLink" href="assets/qr-poster.png" target="_blank" rel="noopener">📋 班級海報（掃碼玩）</a>
+        <button class="btn-lite hidden" id="installBtn" style="margin-top: 8px;">📲 安裝至主畫面 (免網玩)</button>
       </div>
     </div>
   </div>
@@ -339,8 +369,18 @@
     <a href="https://www.smes.tyc.edu.tw/modules/tadnews/page.php?ncsn=11&nsn=16#a5" target="_blank" rel="noopener">阿凱老師</a>｜桃園市龍潭區石門國民小學
   </div>
 
+  <!-- iOS Safari 安裝引導模態窗 -->
+  <div class="ios-install-overlay hidden" id="iosInstallOverlay">
+    <div class="ios-install-card">
+      <h3 id="iosInstallTitle">iOS Safari 安裝說明</h3>
+      <p id="iosInstallBody">請點擊瀏覽器下方的分享按鈕 📤，然後選取「加入主畫面」以離線遊玩！</p>
+      <button class="cta" id="iosInstallClose" style="width:100%; margin-top:0;">OK</button>
+    </div>
+  </div>
+
 <script type="module">
 import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 // ===================== 場景色板（每 10 分換一個）=====================
 const SCENES = [
@@ -373,7 +413,245 @@ const SET = {
   sfx:  localStorage.getItem("pika3d_sfx") !== "0",
   hc:   localStorage.getItem("pika3d_hc") === "1",
   low:  localStorage.getItem("pika3d_low") === "1",
+  lang: localStorage.getItem("pika3d_lang") || "zh",
 };
+
+// ===================== 多國語言詞典 (i18n) =====================
+const LANGS = {
+  zh: {
+    title: "皮卡丘天空大冒險",
+    sub: "選好難度與角色，點「開始」起飛！",
+    best: "最佳紀錄：",
+    easy: "簡單",
+    normal: "普通",
+    hard: "挑戰",
+    diff: "難度",
+    skin: "角色",
+    setting: "設定",
+    pika: "皮卡丘⚡",
+    fire: "烈焰🔥",
+    water: "海洋🌊",
+    grass: "森林🌿",
+    jiggly: "胖丁🎵",
+    snorlax: "卡比獸💤",
+    btn_install: "📲 安裝至主畫面 (免網玩)",
+    install_ios: "iOS Safari 安裝說明",
+    install_ios_body: "請點擊瀏覽器下方的分享按鈕 📤，然後選取「加入主畫面」以離線遊玩！",
+    poster: "📋 班級海報 ( 掃碼玩 )",
+    start: "點擊開始 ▶",
+    over: "遊戲結束",
+    tip_over: "再接再厲！",
+    score: "得分 ",
+    best_label: "　最佳 ",
+    nickname: "暱稱",
+    className: "班級",
+    upload: "上傳",
+    share: "📸 下載成績卡分享",
+    restart: "再玩一次 ↻",
+    rank_title: "🏆 班級排行榜",
+    tab_top: "總榜",
+    tab_today: "今日",
+    tab_class: "我班",
+    loading: "載入中…",
+    empty: "暫無紀錄",
+    bgm: "🎵 音樂",
+    sfx: "🔊 音效",
+    hc: "🔆 高對比",
+    low: "⚡ 順暢(低畫質)",
+    desc_pika: "⚡ 皮卡丘：標準平衡型，操控靈活自如！",
+    desc_fire: "🔥 烈焰皮卡丘：起跳爆發力強，但重力感稍重！",
+    desc_water: "🌊 海洋皮卡丘：在水氣中飛翔，下墜稍微緩慢！",
+    desc_grass: "🌿 森林皮卡丘：身手輕盈敏捷，起跳與下墜均衡！",
+    desc_jiggly: "🎵 胖丁（氣球寶可夢）：輕飄飄體質，重力較輕、點擊上升較平緩🎈",
+    desc_snorlax: "💤 卡比獸（瞌睡巨獸）：體重 460kg 重量級！墜落極快、點擊上升有爆發力🦖",
+  },
+  en: {
+    title: "Pika Sky Adventure",
+    sub: "Select difficulty & character, click 'Start' to fly!",
+    best: "Best Record: ",
+    easy: "Easy",
+    normal: "Normal",
+    hard: "Hard",
+    diff: "Difficulty",
+    skin: "Character",
+    setting: "Settings",
+    pika: "Pikachu⚡",
+    fire: "Pyre🔥",
+    water: "Aqua🌊",
+    grass: "Leaf🌿",
+    jiggly: "Jigglypuff🎵",
+    snorlax: "Snorlax💤",
+    btn_install: "📲 Install PWA (Offline Play)",
+    install_ios: "iOS Safari Installation Instructions",
+    install_ios_body: "Tap the Share button 📤 below, then select 'Add to Home Screen' to play offline!",
+    poster: "📋 Class Poster (QR Code)",
+    start: "Click Start ▶",
+    over: "Game Over",
+    tip_over: "Try Again!",
+    score: "Score ",
+    best_label: "　Best ",
+    nickname: "Name",
+    className: "Class",
+    upload: "Upload",
+    share: "📸 Download Score Card",
+    restart: "Restart ↻",
+    rank_title: "🏆 Leaderboard",
+    tab_top: "Top",
+    tab_today: "Today",
+    tab_class: "My Class",
+    loading: "Loading...",
+    empty: "No Record",
+    bgm: "🎵 Music",
+    sfx: "🔊 SFX",
+    hc: "🔆 Contrast",
+    low: "⚡ Smooth (Low-Poly)",
+    desc_pika: "⚡ Pikachu: Balanced type, controls smoothly!",
+    desc_fire: "🔥 Pyre Pikachu: Powerful flaps, but heavier gravity!",
+    desc_water: "🌊 Aqua Pikachu: Glides in mist, drops slightly slower!",
+    desc_grass: "🌿 Leaf Pikachu: Nimble and light, very responsive!",
+    desc_jiggly: "🎵 Jigglypuff: Balloon body! Low gravity, floats gently 🎈",
+    desc_snorlax: "💤 Snorlax: Heavy and drops fast, but can [Body Slam] to break pipes!",
+  }
+};
+
+function updateLanguage() {
+  const lang = SET.lang;
+  const dict = LANGS[lang];
+  if (!dict) return;
+  
+  // 開始畫面
+  const startScr = document.getElementById("startScreen");
+  if (startScr) {
+    const title = startScr.querySelector(".title");
+    if (title) title.innerHTML = dict.title + ' <span class="bolt">⚡</span>';
+    const sub = startScr.querySelector(".sub");
+    if (sub) sub.innerText = dict.sub;
+    
+    const big = startScr.querySelector(".big");
+    if (big) big.innerHTML = dict.best + '<span id="bestStart">' + (localStorage.getItem("pika3d_best") || 0) + '</span>';
+    
+    // 難度選項
+    const diffH4 = startScr.querySelector(".opt:nth-of-type(1) h4");
+    if (diffH4) diffH4.innerText = dict.diff;
+    const diffChips = document.getElementById("diffChips");
+    if (diffChips) {
+      diffChips.querySelector('[data-diff="easy"]').innerText = dict.easy;
+      diffChips.querySelector('[data-diff="normal"]').innerText = dict.normal;
+      diffChips.querySelector('[data-diff="hard"]').innerText = dict.hard;
+    }
+    
+    // 角色選項
+    const skinH4 = startScr.querySelector(".opt:nth-of-type(2) h4");
+    if (skinH4) skinH4.innerText = dict.skin;
+    const skinChips = document.getElementById("skinChips");
+    if (skinChips) {
+      skinChips.querySelector('[data-skin="pika"]').innerText = dict.pika;
+      skinChips.querySelector('[data-skin="fire"]').innerText = dict.fire;
+      skinChips.querySelector('[data-skin="water"]').innerText = dict.water;
+      skinChips.querySelector('[data-skin="grass"]').innerText = dict.grass;
+      skinChips.querySelector('[data-skin="jiggly"]').innerText = dict.jiggly;
+      skinChips.querySelector('[data-skin="snorlax"]').innerText = dict.snorlax;
+    }
+    
+    // 設定選項
+    const toggleH4 = startScr.querySelector(".opt:nth-of-type(3) h4");
+    if (toggleH4) toggleH4.innerText = dict.setting;
+    const toggleChips = document.getElementById("toggleChips");
+    if (toggleChips) {
+      toggleChips.querySelector('[data-tg="bgm"]').innerText = dict.bgm;
+      toggleChips.querySelector('[data-tg="sfx"]').innerText = dict.sfx;
+      toggleChips.querySelector('[data-tg="hc"]').innerText = dict.hc;
+      toggleChips.querySelector('[data-tg="low"]').innerText = dict.low;
+    }
+    
+    const startBtn = document.getElementById("startBtn");
+    if (startBtn) startBtn.innerText = dict.start;
+    
+    const posterLink = document.getElementById("posterLink");
+    if (posterLink) posterLink.innerText = dict.poster;
+    
+    const lbStart = document.getElementById("lbStart");
+    if (lbStart) {
+      const lbTitle = lbStart.querySelector(".lb-title");
+      if (lbTitle) lbTitle.innerText = dict.rank_title;
+      const tabs = document.getElementById("tabsStart");
+      if (tabs) {
+        tabs.querySelector('[data-tab="top"]').innerText = dict.tab_top;
+        tabs.querySelector('[data-tab="today"]').innerText = dict.tab_today;
+        tabs.querySelector('[data-tab="class"]').innerText = dict.tab_class;
+      }
+    }
+  }
+  
+  // 結束畫面
+  const overScr = document.getElementById("overScreen");
+  if (overScr) {
+    const title = overScr.querySelector(".title");
+    if (title) title.innerText = dict.over;
+    const sub = document.getElementById("overTip");
+    if (sub && sub.innerText && !sub.innerText.includes("🏆")) {
+      if (sub.innerText === "再接再厲！" || sub.innerText === "Try Again!") {
+        sub.innerText = dict.tip_over;
+      }
+    }
+    const big = overScr.querySelector(".big");
+    if (big) big.innerHTML = dict.score + '<span id="finalScore">0</span>' + dict.best_label + '<span id="finalBest">0</span>';
+    
+    const nameInput = document.getElementById("nameInput");
+    if (nameInput) nameInput.placeholder = dict.nickname;
+    const classInput = document.getElementById("classInput");
+    if (classInput) classInput.placeholder = dict.className;
+    const submitBtn = document.getElementById("submitBtn");
+    if (submitBtn) submitBtn.innerText = dict.upload;
+    
+    const restartBtn = document.getElementById("restartBtn");
+    if (restartBtn) restartBtn.innerText = dict.restart;
+    const shareBtn = document.getElementById("shareBtn");
+    if (shareBtn) shareBtn.innerText = dict.share;
+    
+    const lbOver = document.getElementById("lbOver");
+    if (lbOver) {
+      const lbTitle = lbOver.querySelector(".lb-title");
+      if (lbTitle) lbTitle.innerText = dict.rank_title;
+      const tabs = document.getElementById("tabsOver");
+      if (tabs) {
+        tabs.querySelector('[data-tab="top"]').innerText = dict.tab_top;
+        tabs.querySelector('[data-tab="today"]').innerText = dict.tab_today;
+        tabs.querySelector('[data-tab="class"]').innerText = dict.tab_class;
+      }
+    }
+  }
+  
+  // HUD
+  const meta = document.getElementById("meta");
+  if (meta) {
+    meta.innerHTML = `<span class="scene" id="sceneName">${document.getElementById("sceneName") ? document.getElementById("sceneName").innerText : "晴空"}</span><br>${dict.best_label.trim()} <span id="best">${localStorage.getItem("pika3d_best") || 0}</span>`;
+  }
+  
+  // 更新語系切換按鈕文字
+  const btnLang = document.getElementById("btnLang");
+  if (btnLang) {
+    btnLang.innerText = lang === "zh" ? "🌐 EN" : "🌐 繁中";
+  }
+  
+  // 安裝按鈕文字
+  const installBtn = document.getElementById("installBtn");
+  if (installBtn) {
+    installBtn.innerText = dict.btn_install;
+  }
+  
+  // 角色說明描述
+  updateSkinDesc();
+  
+  // 排行榜列表內如果有 empty 也要更新
+  document.querySelectorAll(".lb-empty").forEach(el => {
+    if (el.innerText === "載入中…" || el.innerText === "Loading...") {
+      el.innerText = dict.loading;
+    } else if (el.innerText === "暫無紀錄" || el.innerText === "No Record") {
+      el.innerText = dict.empty;
+    }
+  });
+}
 
 // 物理參數（依難度填入）
 const PX = -4.2;
@@ -472,37 +750,122 @@ const pikaComponents = [];
 const jigglyComponents = [];
 const snorlaxComponents = [];
 
-const SKIN_DESCS = {
-  pika: "⚡ 皮卡丘：標準平衡型，操控靈活自如！",
-  fire: "🔥 烈焰皮卡丘：熱情奔放，標準物理設定。",
-  water: "🌊 海洋皮卡丘：沉穩如水，標準物理設定。",
-  grass: "🌿 森林皮卡丘：自然和諧，標準物理設定。",
-  jiggly: "🎵 胖丁（氣球寶可夢）：輕飄飄體質，重力較輕、點擊上升較平緩🎈",
-  snorlax: "💤 卡比獸（瞌睡巨獸）：體重 460kg 重量級！墜落極快、點擊上升有爆發力🦖",
-};
-
 function updateSkinDesc() {
   const el = document.getElementById("skinDesc");
   if (el) {
-    el.innerText = SKIN_DESCS[SET.skin] || "";
+    const dict = LANGS[SET.lang] || LANGS.zh;
+    el.innerText = dict[`desc_${SET.skin}`] || "";
   }
 }
 
 let pikaHalo;
 
+// ===================== GLTF 模型加載與控制 =====================
+const GLTF_URLS = {
+  pika: "https://raw.githubusercontent.com/cagoooo/pikachu-flappy-bird/main/assets/pikachu.gltf", // 示意路徑
+  jiggly: null,
+  snorlax: null
+};
+const gltfModels = { pika: null, jiggly: null, snorlax: null };
+const gltfLoadStatus = { pika: "idle", jiggly: "idle", snorlax: "idle" };
+let gltfMixers = { pika: null, jiggly: null, snorlax: null };
+
+function loadGLTFModel(skin) {
+  const url = GLTF_URLS[skin];
+  if (!url || gltfLoadStatus[skin] !== "idle") return;
+  
+  gltfLoadStatus[skin] = "loading";
+  console.log(`[GLTF] Loading model for ${skin}...`);
+  
+  const loader = new GLTFLoader();
+  const timeoutMs = 4000;
+  
+  const timeoutPromise = new Promise((_, reject) => 
+    setTimeout(() => reject(new Error("Loading timeout after 4s")), timeoutMs)
+  );
+  
+  const loadPromise = new Promise((resolve, reject) => {
+    loader.load(url, resolve, undefined, reject);
+  });
+  
+  Promise.race([loadPromise, timeoutPromise])
+    .then((gltf) => {
+      console.log(`[GLTF] Loaded model for ${skin} successfully!`);
+      const model = gltf.scene;
+      
+      if (skin === "pika") {
+        model.scale.set(0.45, 0.45, 0.45);
+        model.position.set(0, -0.2, 0);
+      }
+      
+      if (gltf.animations && gltf.animations.length > 0) {
+        const mixer = new THREE.AnimationMixer(model);
+        gltfMixers[skin] = mixer;
+        const action = mixer.clipAction(gltf.animations[0]);
+        action.play();
+      }
+      
+      model.visible = false;
+      pika.add(model);
+      gltfModels[skin] = model;
+      gltfLoadStatus[skin] = "success";
+      applySkin();
+    })
+    .catch((err) => {
+      console.warn(`[GLTF] Failed to load model for ${skin}:`, err.message);
+      gltfLoadStatus[skin] = "failed";
+      applySkin();
+    });
+}
+
 function applySkin(){
   const skin = SET.skin;
-  matBody.color.set((SKINS[skin]||SKINS.pika).body);
+  const isPikaSkin = (skin === "pika" || skin === "fire" || skin === "water" || skin === "grass");
   
+  matBody.color.set((SKINS[skin]||SKINS.pika).body);
   if (pikaHalo) {
     if (skin === "jiggly") pikaHalo.material.color.set(0xffaacc);
     else if (skin === "snorlax") pikaHalo.material.color.set(0xfcf2d4);
     else pikaHalo.material.color.set(0xffd54a);
   }
   
-  const isPika = (skin === "pika" || skin === "fire" || skin === "water" || skin === "grass");
-  const isJiggly = (skin === "jiggly");
-  const isSnorlax = (skin === "snorlax");
+  Object.keys(gltfModels).forEach(k => {
+    if (gltfModels[k]) gltfModels[k].visible = false;
+  });
+  
+  const useGLTF = !SET.low;
+  let modelKey = null;
+  if (isPikaSkin) modelKey = "pika";
+  else if (skin === "jiggly") modelKey = "jiggly";
+  else if (skin === "snorlax") modelKey = "snorlax";
+  
+  let showProcedural = true;
+  
+  if (useGLTF && modelKey && GLTF_URLS[modelKey]) {
+    const status = gltfLoadStatus[modelKey];
+    if (status === "success" && gltfModels[modelKey]) {
+      const model = gltfModels[modelKey];
+      model.visible = true;
+      showProcedural = false;
+      
+      if (modelKey === "pika") {
+        const bodyColor = (SKINS[skin] || SKINS.pika).body;
+        model.traverse(child => {
+          if (child.isMesh && child.name.toLowerCase().includes("body")) {
+            if (child.material) {
+              child.material.color.set(bodyColor);
+            }
+          }
+        });
+      }
+    } else if (status === "idle") {
+      loadGLTFModel(modelKey);
+    }
+  }
+  
+  const isPika = isPikaSkin && showProcedural;
+  const isJiggly = (skin === "jiggly") && showProcedural;
+  const isSnorlax = (skin === "snorlax") && showProcedural;
   
   pikaComponents.forEach(c => c.visible = isPika);
   jigglyComponents.forEach(c => c.visible = isJiggly);
@@ -882,14 +1245,14 @@ function updateSkillHUD() {
   const C = 263.89; // 2 * Math.PI * 42
   
   if (singTimer > 0) {
-    txt.innerHTML = `🎵 唱歌<br>${Math.ceil(singTimer)}秒`;
+    txt.innerHTML = SET.lang === "en" ? `🎵 Sing<br>${Math.ceil(singTimer)}s` : `🎵 唱歌<br>${Math.ceil(singTimer)}秒`;
     btn.classList.remove("ready");
     if (circle) {
       const offset = C - (singTimer / 6.0) * C;
       circle.style.strokeDashoffset = offset;
     }
   } else if (bodySlamTimer > 0) {
-    txt.innerHTML = `💤 壓頂<br>${Math.ceil(bodySlamTimer)}秒`;
+    txt.innerHTML = SET.lang === "en" ? `💤 Slam<br>${Math.ceil(bodySlamTimer)}s` : `💤 壓頂<br>${Math.ceil(bodySlamTimer)}秒`;
     btn.classList.remove("ready");
     if (circle) {
       const offset = C - (bodySlamTimer / 4.5) * C;
@@ -900,15 +1263,15 @@ function updateSkillHUD() {
     if (skillCharge >= maxCharge) {
       btn.classList.add("ready");
       if (skin === "jiggly") {
-        txt.innerHTML = `🎵 唱歌<br>催眠`;
+        txt.innerHTML = SET.lang === "en" ? `🎵 Sing<br>Lullaby` : `🎵 唱歌<br>催眠`;
       } else if (skin === "snorlax") {
-        txt.innerHTML = `💤 泰山<br>壓頂`;
+        txt.innerHTML = SET.lang === "en" ? `💤 Body<br>Slam` : `💤 泰山<br>壓頂`;
       } else {
-        txt.innerHTML = `⚡ 十萬<br>伏特`;
+        txt.innerHTML = SET.lang === "en" ? `⚡ Bolt<br>Strike` : `⚡ 十萬<br>伏特`;
       }
     } else {
       btn.classList.remove("ready");
-      txt.innerHTML = `⚡ 能量<br>${skillCharge}/${maxCharge}`;
+      txt.innerHTML = SET.lang === "en" ? `⚡ Energy<br>${skillCharge}/${maxCharge}` : `⚡ 能量<br>${skillCharge}/${maxCharge}`;
     }
   }
 }
@@ -1155,12 +1518,18 @@ $("diffChips").addEventListener("click", e=>{ const b=e.target.closest(".chip");
 $("skinChips").addEventListener("click", e=>{ const b=e.target.closest(".chip"); if(!b) return; e.stopPropagation();
   SET.skin=b.dataset.skin; localStorage.setItem("pika3d_skin",SET.skin); applySkin(); applyDifficulty(); setGlow(); markChips(); });
 $("toggleChips").addEventListener("click", e=>{ const b=e.target.closest(".chip"); if(!b) return; e.stopPropagation();
+  if(b.id === "btnLang") {
+    SET.lang = SET.lang === "zh" ? "en" : "zh";
+    localStorage.setItem("pika3d_lang", SET.lang);
+    updateLanguage();
+    return;
+  }
   const k=b.dataset.tg; SET[k]=!SET[k]; localStorage.setItem("pika3d_"+k, SET[k]?"1":"0");
   if(k==="hc") applyHC();
   if(k==="low") applyPerformanceMode();
   markChips();
 });
-applyHC(); applyPerformanceMode(); markChips();
+applyHC(); applyPerformanceMode(); markChips(); updateLanguage();
 
 // ===================== 班級排行榜 + 成績卡 =====================
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyem_i12Ix2iHf2gjXZ1T5UocFynqkmdiQQ7aBIKqV1R4RB5AgG8UAoFRqj-0gGntFD/exec";
@@ -1177,7 +1546,12 @@ function entriesFor(tab){
 function renderLB(listEl, entries){
   if(!listEl) return;
   if(!entries || !entries.length){
-    const msg = lbTab==="class" ? (myClass?("「"+esc(myClass)+"」還沒有人上榜"):"在結算輸入班級即可看本班") : "還沒有人上榜，當第一名吧！";
+    let msg = "";
+    if (SET.lang === "en") {
+      msg = lbTab==="class" ? (myClass?("No record for Class '" + esc(myClass) + "'"):"Enter class at Game Over to view") : "No record yet. Be the first!";
+    } else {
+      msg = lbTab==="class" ? (myClass?("「"+esc(myClass)+"」還沒有人上榜"):"在結算輸入班級即可看本班") : "還沒有人上榜，當第一名吧！";
+    }
     listEl.innerHTML = '<li class="lb-empty">'+msg+'</li>'; return;
   }
   listEl.innerHTML = entries.slice(0,15).map((e,i)=>{
@@ -1194,7 +1568,7 @@ function showLB(){
 }
 function loadLB(){
   fetch(GAS_API_URL).then(r=>r.json()).then(d=>{ lastLB={ top:d.top||[], today:d.today||[] }; showLB(); })
-  .catch(()=>{ [$("lbStartList"),$("lbOverList")].forEach(el=>{ if(el) el.innerHTML='<li class="lb-empty">排行榜暫時無法連線</li>'; }); });
+  .catch(()=>{ [$("lbStartList"),$("lbOverList")].forEach(el=>{ if(el) el.innerHTML='<li class="lb-empty">' + (SET.lang === "en" ? "Unable to connect to leaderboard" : "排行榜暫時無法連線") + '</li>'; }); });
 }
 ["tabsStart","tabsOver"].forEach(id=>{ const el=$(id); if(el) el.addEventListener("click", e=>{
   e.stopPropagation(); const b=e.target.closest(".lbtab"); if(!b) return; lbTab=b.dataset.tab; showLB(); }); });
@@ -1203,15 +1577,67 @@ function submitScore(){
   const inp=$("nameInput"), ci=$("classInput");
   let name=(inp.value||"").trim().slice(0,12);
   let cls=(ci.value||"").trim().slice(0,8);
-  if(!name){ inp.focus(); inp.placeholder="請先輸入暱稱！"; return; }
+  if(!name){ inp.focus(); inp.placeholder = SET.lang === "en" ? "Enter name!" : "請先輸入暱稱！"; return; }
   myNick=name; myClass=cls; localStorage.setItem("pika3d_nick",name); localStorage.setItem("pika3d_class",cls);
-  const btn=$("submitBtn"); btn.disabled=true; btn.textContent="上傳中…";
+  const btn=$("submitBtn"); btn.disabled=true; btn.textContent = SET.lang === "en" ? "Uploading..." : "上傳中…";
   const q="?action=add&name="+encodeURIComponent(name)+"&class="+encodeURIComponent(cls)+"&score="+encodeURIComponent(score)+"&sec="+encodeURIComponent(lastPlaySec);
   fetch(GAS_API_URL+q).then(r=>r.json()).then(d=>{
-    btn.textContent = (d.ok===false) ? "分數異常未收錄" : "已上榜 ✓";
+    btn.textContent = (d.ok===false) ? (SET.lang === "en" ? "Upload Failed" : "分數異常未收錄") : (SET.lang === "en" ? "Uploaded ✓" : "已上榜 ✓");
     lastLB={ top:d.top||[], today:d.today||[] }; showLB();
-  }).catch(()=>{ btn.disabled=false; btn.textContent="重試"; });
+  }).catch(()=>{ btn.disabled=false; btn.textContent = SET.lang === "en" ? "Retry" : "重試"; });
 }
+
+// ===================== PWA 一鍵安裝引導 (A2HS) =====================
+let deferredPrompt;
+const installBtn = document.getElementById("installBtn");
+const iosOverlay = document.getElementById("iosInstallOverlay");
+const iosClose = document.getElementById("iosInstallClose");
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+
+if (isStandalone) {
+  if (installBtn) installBtn.classList.add("hidden");
+} else {
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (installBtn) installBtn.classList.remove("hidden");
+  });
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  if (isIOS && isSafari && !isStandalone) {
+    if (installBtn) installBtn.classList.remove("hidden");
+  }
+  if (installBtn) {
+    installBtn.onclick = (e) => {
+      e.stopPropagation();
+      const dict = LANGS[SET.lang] || LANGS.zh;
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+          if (choiceResult.outcome === 'accepted') {
+            installBtn.classList.add("hidden");
+          }
+          deferredPrompt = null;
+        });
+      } else if (isIOS) {
+        if (iosOverlay) {
+          const iosTitle = document.getElementById("iosInstallTitle");
+          const iosBody = document.getElementById("iosInstallBody");
+          if (iosTitle) iosTitle.innerText = dict.install_ios;
+          if (iosBody) iosBody.innerText = dict.install_ios_body;
+          iosOverlay.classList.remove("hidden");
+        }
+      }
+    };
+  }
+}
+if (iosClose && iosOverlay) {
+  iosClose.onclick = (e) => {
+    e.stopPropagation();
+    iosOverlay.classList.add("hidden");
+  };
+}
+
 $("shareBtn").addEventListener("click", e=>{ e.stopPropagation(); shareCard(); });
 function drawFace(x,cx,cy,s){
   const S=(ax,ay)=>[cx+(ax-500)*s, cy+(ay-540)*s];
@@ -1312,25 +1738,41 @@ function shareCard(){
   drawFace(x,540,330,0.42);
   x.textAlign="center";
   x.fillStyle="#fff"; x.strokeStyle="rgba(20,30,60,.45)"; x.lineWidth=9;
-  x.font="900 74px 'Microsoft JhengHei',sans-serif"; x.strokeText("皮卡丘天空大冒險",540,610); x.fillText("皮卡丘天空大冒險",540,610);
+  
+  const titleText = SET.lang === "en" ? "Pika Sky Adventure" : "皮卡丘天空大冒險";
+  x.font="900 74px 'Microsoft JhengHei',sans-serif"; x.strokeText(titleText,540,610); x.fillText(titleText,540,610);
+  
   x.fillStyle="#26406e"; x.font="800 50px 'Microsoft JhengHei',sans-serif";
-  x.fillText((myNick||"我")+(myClass?("（"+myClass+"）"):"")+" 的飛行成績",540,690);
+  const descText = SET.lang === "en" ? 
+    (myNick||"My")+(myClass?(" ("+myClass+")"):"")+" Flight Score" :
+    (myNick||"我")+(myClass?("（"+myClass+"）"):"")+" 的飛行成績";
+  x.fillText(descText,540,690);
+  
   x.fillStyle="#ffe14d"; x.strokeStyle="rgba(20,30,60,.5)"; x.lineWidth=12;
   x.font="900 210px 'Microsoft JhengHei',sans-serif"; x.strokeText(String(score),540,880); x.fillText(String(score),540,880);
+  
   x.fillStyle="#3a2700"; x.font="800 44px 'Microsoft JhengHei',sans-serif";
-  x.fillText("你能贏過我嗎？快來挑戰！",540,955);
+  const challengeText = SET.lang === "en" ? "Can you beat me? Challenge now!" : "你能贏過我嗎？快來挑戰！";
+  x.fillText(challengeText,540,955);
+  
   x.fillStyle="#1b2a4a"; x.font="700 32px 'Microsoft JhengHei',sans-serif";
   x.fillText("cagoooo.github.io/pikachu-flappy-bird",540,1010);
-  x.fillText("阿凱老師｜桃園市龍潭區石門國民小學",540,1052);
+  
+  const authorText = SET.lang === "en" ? "Teacher Akai | Shimen Elementary School" : "阿凱老師｜桃園市龍潭區石門國民小學";
+  x.fillText(authorText,540,1052);
+  
+  const filename = SET.lang === "en" ? "My_Pika_Score.png" : "我的皮卡丘成績.png";
+  const shareText = SET.lang === "en" ? "I got " + score + " points!" : "我拿了 " + score + " 分！";
+  
   C.toBlob(b=>{
     if(!b) return;
     try{
-      const f=new File([b],"我的皮卡丘成績.png",{type:"image/png"});
+      const f=new File([b],filename,{type:"image/png"});
       if(navigator.canShare && navigator.canShare({files:[f]})){
-        navigator.share({files:[f], title:"皮卡丘天空大冒險", text:"我拿了 "+score+" 分！"}).catch(()=>{}); return;
+        navigator.share({files:[f], title:titleText, text:shareText}).catch(()=>{}); return;
       }
     }catch(e){}
-    const a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download="我的皮卡丘成績.png"; a.click();
+    const a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download=filename; a.click();
     setTimeout(()=>URL.revokeObjectURL(a.href),3000);
   },"image/png");
 }
@@ -1339,6 +1781,9 @@ loadLB();
 // ===================== 更新 =====================
 function update(dt){
   const t = performance.now()*0.001;
+  Object.keys(gltfMixers).forEach(k => {
+    if (gltfMixers[k]) gltfMixers[k].update(dt);
+  });
   clouds.forEach(c=>{ c.position.x -= speed*0.18*dt; if(c.position.x < -22){ c.position.x = 22; c.position.y = 2+Math.random()*4; } });
   if(trans<1){ trans=Math.min(1, trans + dt*1.5); applyScene(trans); }
   earL.rotation.x += (-0.32 - earL.rotation.x)*Math.min(1,dt*8);
@@ -1654,7 +2099,7 @@ if(new URLSearchParams(location.search).get("autopilot")==="1"){
     }).catch(function(){});
     return;
   }
-  var APP_VERSION='2026.06.23-6';   // 與 sw.js / version.json 同步
+  var APP_VERSION='2026.06.23-7';   // 與 sw.js / version.json 同步
   var reloaded=false;
   function showBar(waiting){
     if(document.getElementById('sw-update-bar')) return;
