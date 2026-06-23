@@ -1652,19 +1652,23 @@ function getBgm(i){
   return bgmEls[i];
 }
 function bgmFade(a, target, ms, done){
+  if(a._fadeTimer){ clearInterval(a._fadeTimer); a._fadeTimer = null; } // 取消同一軌上正在跑的舊淡入/淡出，避免兩個 interval 互打架
   const steps = 16, dt = Math.max(16, ms/steps), from = a.volume; let i = 0;
-  const t = setInterval(()=>{
+  a._fadeTimer = setInterval(()=>{
     i++;
     // 動態讀取最新音量設定，避免淡入過程中玩家調整滑桿音量無效
     const curTarget = (a === bgmEls[bgmCur] && !bgmDucked) ? (BGM_VOL_MAP[bgmCur] ?? 0.3) * (SET.bgmVol / 100) : target;
     a.volume = Math.max(0, Math.min(1, from + (curTarget-from)*(i/steps)));
-    if(i>=steps){ clearInterval(t); if(done) done(); }
+    if(i>=steps){ clearInterval(a._fadeTimer); a._fadeTimer = null; if(done) done(); }
   }, dt);
 }
 function bgmPlay(i){
   if(!SET.bgm || SET.bgmVol === 0 || i === bgmCur) return;
-  if(bgmCur>=0 && bgmEls[bgmCur]){ const old = bgmEls[bgmCur]; bgmFade(old, 0, 500, ()=>{ try{ old.pause(); }catch(e){} }); }
   bgmCur = i;
+  // 把所有「非目標、仍在播放」的軌一律淡出停掉 → 保證任何時刻只有一軌 BGM（修正結算時兩軌疊放）
+  bgmEls.forEach((el, idx)=>{
+    if(el && idx !== i && !el.paused){ bgmFade(el, 0, 500, ()=>{ try{ el.pause(); }catch(e){} }); }
+  });
   const a = getBgm(i); a.volume = 0;
   const maxVol = (BGM_VOL_MAP[i] ?? 0.3) * (SET.bgmVol / 100);
   a.play().then(()=>bgmFade(a, maxVol, 800)).catch(()=>{});
@@ -2909,7 +2913,7 @@ if(new URLSearchParams(location.search).get("autopilot")==="1"){
     }).catch(function(){});
     return;
   }
-  var APP_VERSION='2026.06.23-11';   // 與 sw.js / version.json 同步
+  var APP_VERSION='2026.06.23-12';   // 與 sw.js / version.json 同步
   var reloaded=false;
   function showBar(waiting){
     if(document.getElementById('sw-update-bar')) return;
