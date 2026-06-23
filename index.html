@@ -113,6 +113,29 @@
     text-shadow:0 4px 0 rgba(0,0,0,.3), 0 0 30px rgba(180,80,255,.75); opacity:0;
     transition:opacity .25s, transform .25s; pointer-events:none; white-space:nowrap; z-index:6; }
   #banner.show{ opacity:1; transform:translate(-50%,-50%) scale(1); }
+  /* ---- 角色大招技能按鈕 ---- */
+  .skill-btn-hud {
+    position: fixed; right: min(6vw, 36px); bottom: min(6vh, 48px); z-index: 10;
+    width: clamp(64px, 12vw, 84px); height: clamp(64px, 12vw, 84px); border-radius: 50%;
+    background: rgba(255,255,255,0.08); border: 2.5px solid rgba(255,255,255,0.25);
+    color: rgba(255,255,255,0.7); display: flex; align-items: center; justify-content: center;
+    font-size: clamp(12px, 2.2vw, 15px); font-weight: 900; cursor: pointer;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    box-shadow: 0 8px 24px -8px rgba(0,0,0,0.4);
+    transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+    user-select: none; -webkit-user-select: none;
+  }
+  .skill-btn-hud.ready {
+    background: linear-gradient(135deg, #ffe14d, #ff9d2e);
+    color: #3a2700; border-color: #fff;
+    box-shadow: 0 0 25px rgba(255, 225, 77, 0.8);
+    animation: skillPulse 1.2s infinite;
+  }
+  .skill-btn-hud.hidden { display: none !important; }
+  @keyframes skillPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
 </style>
 <script type="importmap">
 { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
@@ -128,6 +151,7 @@
     <div id="items"></div>
     <div id="banner"></div>
     <div id="meta"><span class="scene" id="sceneName">晴空</span><br>最佳 <span id="best">0</span></div>
+    <div id="skillBtn" class="skill-btn-hud hidden">⚡ 0/3</div>
   </div>
 
   <div class="overlay" id="startScreen">
@@ -234,6 +258,11 @@ const PX = -4.2;
 const FLOOR_Y = -6.0, CEIL_Y = 6.6;
 const PIPE_R = 0.95, HIT_R = 0.6, SPAWN_X = 14;
 let GAP_HALF = 2.35, BASE_SPEED = 4.8, GRAVITY = -20.5, FLAP = 7.7, SPAWN_DX = 5.6;
+let skillCharge = 0;
+const maxCharge = 3;
+let singTimer = 0;
+let bodySlamTimer = 0;
+let bodySlamActive = false;
 function applyDifficulty(){
   const d = DIFF[SET.diff] || DIFF.normal;
   GAP_HALF = d.gapHalf; BASE_SPEED = d.speed; GRAVITY = d.grav; FLAP = d.flap; SPAWN_DX = d.dx;
@@ -701,23 +730,111 @@ function setGlow(){
   if(invincT>0) c = 0xffd54a; else if(dblT>0) c = 0xff5ad6; else if(shieldOn) c = 0x2aa0cc;
   matBody.emissive.set(c); matBody.emissiveIntensity = c ? 0.45 : 0;
 }
+function updateSkillHUD() {
+  const btn = document.getElementById("skillBtn");
+  if (!btn) return;
+  if (state !== ST.PLAY) {
+    btn.classList.add("hidden");
+    return;
+  }
+  btn.classList.remove("hidden");
+  if (singTimer > 0) {
+    btn.innerText = `🎵 唱歌 ${Math.ceil(singTimer)}s`;
+    btn.classList.remove("ready");
+  } else if (bodySlamTimer > 0) {
+    btn.innerText = `💤 壓頂 ${Math.ceil(bodySlamTimer)}s`;
+    btn.classList.remove("ready");
+  } else {
+    btn.innerText = `⚡ ${skillCharge}/${maxCharge}`;
+    if (skillCharge >= maxCharge) {
+      btn.classList.add("ready");
+    } else {
+      btn.classList.remove("ready");
+    }
+  }
+}
+
+function playSingMelody() {
+  const notes = [261.6, 293.7, 329.6, 261.6, 329.6, 392.0];
+  notes.forEach((freq, idx) => {
+    setTimeout(() => {
+      if (state === ST.PLAY) beep(freq, 0.22, "sine", 0.14);
+    }, idx * 160);
+  });
+}
+
+function playThudSound() {
+  beep(180, 0.25, "sine", 0.22, 40);
+  setTimeout(() => beep(90, 0.35, "triangle", 0.25, 30), 50);
+}
+
+function castThunderbolt() {
+  const targetPipe = pipes.find(p => p.position.x > PX && !p.userData.destroyed);
+  if (targetPipe) {
+    targetPipe.userData.destroyed = true;
+    burst(targetPipe.position.x, targetPipe.userData.gapY || 0, 0xffd54a, 45, 8.5);
+    beep(880, 0.12, "sawtooth", 0.15, 2200);
+    setTimeout(() => beep(1200, 0.16, "sine", 0.12, 440), 60);
+    banner("⚡ 十萬伏特！前方柱子碎裂！", 2000);
+    let sc = 1.0;
+    const shrinkInterval = setInterval(() => {
+      sc -= 0.15;
+      if (sc <= 0) {
+        sc = 0;
+        targetPipe.visible = false;
+        clearInterval(shrinkInterval);
+      }
+      targetPipe.scale.set(sc, sc, sc);
+    }, 30);
+  } else {
+    skillCharge = maxCharge;
+    banner("⚡ 附近沒有障礙物！大招充能保留", 1600);
+  }
+}
+
+function castSkill() {
+  if (state !== ST.PLAY) return;
+  if (skillCharge < maxCharge) return;
+  if (singTimer > 0 || bodySlamTimer > 0) return;
+  
+  skillCharge = 0;
+  if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
+  
+  const skin = SET.skin;
+  if (skin === "jiggly") {
+    singTimer = 6.0;
+    banner("🎵 胖丁唱歌！全場催眠減速 6s", 2200);
+    playSingMelody();
+  } else if (skin === "snorlax") {
+    bodySlamTimer = 4.5;
+    bodySlamActive = true;
+    banner("💤 卡比獸：泰山壓頂衝撞準備！", 2200);
+    playThudSound();
+  } else {
+    castThunderbolt();
+  }
+  updateSkillHUD();
+}
+
 function activate(type){
   if(type==="star") invincT = Math.max(invincT, ITEMS.star.dur);
   else if(type==="dbl") dblT = Math.max(dblT, ITEMS.dbl.dur);
   else if(type==="shield") shieldOn = true;
   sItem(); updateItemsHUD(); setGlow();
+  if (navigator.vibrate) navigator.vibrate(65);
 }
 
 function reset(){
   applyDifficulty();
   vy=0; score=0; frame=0; speed=BASE_SPEED; lastGapY=0;
   combo=0; invincT=0; dblT=0; shieldOn=false;
+  skillCharge = 0; singTimer = 0; bodySlamTimer = 0; bodySlamActive = false;
   pipes.forEach(p=>scene.remove(p)); pipes.length=0;
   clearItems(); clearParts();
   for(let i=0;i<4;i++) makePipe(SPAWN_X + i*SPAWN_DX);
-  pika.position.set(PX, 0.5, 0); pika.rotation.z=0;
+  pika.position.set(PX, 0.5, 0); pika.rotation.z=0; pika.rotation.x=0;
   setScene(0, true); setGlow();
-  $("score").textContent = 0; updateComboHUD(); updateItemsHUD();
+  $("score").textContent = 0; updateComboHUD(); updateItemsHUD(); updateSkillHUD();
 }
 
 function start(){
@@ -726,6 +843,7 @@ function start(){
   $("startScreen").classList.add("hidden");
   $("overScreen").classList.add("hidden");
   startBGM();
+  updateSkillHUD();
 }
 // ===================== 橫幅提示 =====================
 let bannerTimer=null;
@@ -765,16 +883,26 @@ function die(){
   const ci=$("classInput"); if(ci){ ci.value = myClass; ci.placeholder="班級"; }
   const btn=$("submitBtn"); if(btn){ btn.disabled=false; btn.textContent="上傳"; }
   $("overScreen").classList.remove("hidden");
+  $("skillBtn").classList.add("hidden");
+  if (navigator.vibrate) navigator.vibrate(220);
   loadLB();
 }
 function flap(){
   if(state===ST.PLAY){ vy=FLAP; sFlap(); earL.rotation.x=-0.6; earR.rotation.x=-0.6; }
 }
-addEventListener("pointerdown", e=>{ if(state===ST.PLAY){ e.preventDefault(); flap(); } }, {passive:false});
+addEventListener("pointerdown", e=>{
+  if(e.target.closest("#skillBtn")) return;
+  if(state===ST.PLAY){ e.preventDefault(); flap(); }
+}, {passive:false});
 addEventListener("keydown", e=>{
   if(e.code==="Space"||e.code==="ArrowUp"){
     if(state===ST.PLAY){ e.preventDefault(); flap(); }
     else if(state===ST.MENU){ e.preventDefault(); start(); }
+  } else if (e.code === "ShiftLeft" || e.code === "ShiftRight" || e.code === "KeyS") {
+    if (state === ST.PLAY) {
+      e.preventDefault();
+      castSkill();
+    }
   }
 });
 addEventListener("resize", ()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
@@ -1069,26 +1197,63 @@ function update(dt){
   if(state!==ST.PLAY){ pika.position.y += Math.sin(performance.now()*0.003)*0.004; renderEffectsIdle(dt); return; }
   frame++;
 
-  // 效果計時
+  // 效果計時與大招更新
   if(invincT>0){ invincT=Math.max(0,invincT-dt); if(invincT===0){ setGlow(); updateItemsHUD(); } }
   if(dblT>0){ dblT=Math.max(0,dblT-dt); if(dblT===0){ setGlow(); updateItemsHUD(); } }
   if((invincT>0||dblT>0) && frame%6===0) updateItemsHUD();
+
+  if(singTimer>0){
+    singTimer=Math.max(0, singTimer-dt);
+    updateSkillHUD();
+    if(Math.random()<0.15 && state===ST.PLAY) {
+      burst(PX + (Math.random()-0.5)*0.5, pika.position.y + (Math.random()-0.5)*0.5, 0xffaacc, 1, 1.5);
+    }
+  }
+  if(bodySlamTimer>0){
+    bodySlamTimer=Math.max(0, bodySlamTimer-dt);
+    if(bodySlamTimer===0) bodySlamActive = false;
+    updateSkillHUD();
+    if(bodySlamActive && Math.random()<0.2 && state===ST.PLAY) {
+      burst(PX - 0.5, pika.position.y, 0xfcf2d4, 2, 2.0);
+    }
+  }
 
   vy += GRAVITY*dt; pika.position.y += vy*dt;
   pika.rotation.z = Math.max(-0.6, Math.min(0.5, vy*0.06));
   pika.rotation.y = 0.45 + Math.sin(performance.now()*0.004)*0.06;
   tail.rotation.z = 0.5 + Math.sin(performance.now()*0.01)*0.12;
   if(invincT>0) pika.rotation.y += 0.2;  // 無敵時轉更快
+  if(bodySlamActive) {
+    pika.rotation.x += 12 * dt;
+  } else {
+    pika.rotation.x = 0;
+  }
 
   // 柱子移動 + 擺動
-  pipes.forEach(p=>{ p.position.x -= speed*dt; if(p.userData.osc){ const o=p.userData.osc; p.position.y = o.amp*Math.sin(t*o.w+o.ph); } });
+  pipes.forEach(p=>{
+    p.position.x -= speed*dt;
+    if(p.userData.osc){
+      const o=p.userData.osc;
+      const wFactor = (singTimer > 0) ? 0.25 : 1.0;
+      p.position.y = o.amp*Math.sin(t*o.w*wFactor+o.ph);
+    }
+  });
 
   // 計分
   pipes.forEach(p=>{
     if(!p.userData.passed && p.position.x < PX){
       p.userData.passed=true;
       const perfect = Math.abs(pika.position.y - pipeGapY(p)) < 0.9;
-      if(perfect) combo++; else combo=0;
+      if(perfect) {
+        combo++;
+        if(skillCharge < maxCharge){
+          skillCharge++;
+          updateSkillHUD();
+        }
+        if(navigator.vibrate) navigator.vibrate(35);
+      } else {
+        combo=0;
+      }
       let gain = 1; if(dblT>0) gain*=2; if(perfect && combo>=3) gain+=1;
       score += gain; sScore(combo);
       $("score").textContent = score; updateComboHUD();
@@ -1123,10 +1288,26 @@ function update(dt){
     }
     if(!inv){
       for(const p of pipes){
+        if(p.userData.destroyed) continue;
         if(Math.abs(p.position.x - PX) < PIPE_R + HIT_R){
           const gy = pipeGapY(p);
           if(pika.position.y - HIT_R < gy - GAP_HALF || pika.position.y + HIT_R > gy + GAP_HALF){
-            if(shieldOn){ shieldOn=false; invincT=Math.max(invincT,0.9); setGlow(); updateItemsHUD();
+            if(bodySlamActive) {
+              p.userData.destroyed = true;
+              burst(p.position.x, gy, 0x4ad6ff, 35, 7);
+              playThudSound();
+              if (navigator.vibrate) navigator.vibrate([180, 50, 180]);
+              let sc = 1.0;
+              const shrinkInterval = setInterval(() => {
+                sc -= 0.2;
+                if (sc <= 0) { sc = 0; p.visible = false; clearInterval(shrinkInterval); }
+                p.scale.set(sc, sc, sc);
+              }, 25);
+              bodySlamActive = false;
+              bodySlamTimer = 0;
+              updateSkillHUD();
+              banner("💥 泰山壓頂！撞碎了柱子！", 1800);
+            } else if(shieldOn){ shieldOn=false; invincT=Math.max(invincT,0.9); setGlow(); updateItemsHUD();
               burst(PX, pika.position.y, 0x4ad6ff, 14, 4); sItem(); }
             else return die();
           }
@@ -1293,7 +1474,7 @@ if(new URLSearchParams(location.search).get("autopilot")==="1"){
     }).catch(function(){});
     return;
   }
-  var APP_VERSION='2026.06.23-2';   // 與 sw.js / version.json 同步
+  var APP_VERSION='2026.06.23-3';   // 與 sw.js / version.json 同步
   var reloaded=false;
   function showBar(waiting){
     if(document.getElementById('sw-update-bar')) return;

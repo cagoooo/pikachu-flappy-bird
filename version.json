@@ -1,4 +1,4 @@
 {
-    "version":  "2026.06.23-2",
-    "notes":  "修復幾何體追蹤變數 TDZ 初始化順序錯誤引起的 Cannot access before initialization 崩潰"
+    "version":  "2026.06.23-3",
+    "notes":  "實作皮卡丘十萬伏特、胖丁唱歌催眠、卡比獸泰山壓頂大招技能系統與手機震動反饋"
 }
