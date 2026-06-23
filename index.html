@@ -247,6 +247,13 @@ function applyDifficulty(){
 }
 applyDifficulty();
 
+// ===================== 幾何體追蹤與效能控制 =====================
+const pikaGeometriesToUpdate = [];
+const cloudMeshes = [];
+function registerPikaGeometry(mesh, type, params) {
+  pikaGeometriesToUpdate.push({ mesh, type, params });
+}
+
 // ===================== 三維場景 =====================
 const app = document.getElementById("app");
 const scene = new THREE.Scene();
@@ -569,13 +576,6 @@ function spawnItem(x, y){
   const m = new THREE.Mesh(itemGeo, mat);
   m.position.set(x, Math.max(FLOOR_Y+1.2, Math.min(CEIL_Y-1.2, y)), 0);
   m.userData.type = type; scene.add(m); items.push(m);
-}
-
-// ===================== 幾何體追蹤與效能控制 =====================
-const pikaGeometriesToUpdate = [];
-const cloudMeshes = [];
-function registerPikaGeometry(mesh, type, params) {
-  pikaGeometriesToUpdate.push({ mesh, type, params });
 }
 
 // ===================== 粒子特效 =====================
@@ -1293,7 +1293,7 @@ if(new URLSearchParams(location.search).get("autopilot")==="1"){
     }).catch(function(){});
     return;
   }
-  var APP_VERSION='2026.06.23-1';   // 與 sw.js / version.json 同步
+  var APP_VERSION='2026.06.23-2';   // 與 sw.js / version.json 同步
   var reloaded=false;
   function showBar(waiting){
     if(document.getElementById('sw-update-bar')) return;

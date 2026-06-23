@@ -1,4 +1,4 @@
 {
-    "version":  "2026.06.23-1",
-    "notes":  "新增胖丁與卡比獸角色選擇，加入物理彩蛋與成績卡2D繪製"
+    "version":  "2026.06.23-2",
+    "notes":  "修復幾何體追蹤變數 TDZ 初始化順序錯誤引起的 Cannot access before initialization 崩潰"
 }
