@@ -348,6 +348,7 @@
           <button id="submitBtn" class="btn-go">上傳</button>
         </div>
         <button class="cta" id="restartBtn" style="width: 100%; margin-top: 16px;">再玩一次 ↻</button>
+        <button class="btn-lite" id="backToMenuBtn" style="width: 100%; margin-top: 8px;">🏠 回到主選單</button>
       </div>
       
       <div class="menu-right">
@@ -448,6 +449,7 @@ const LANGS = {
     upload: "上傳",
     share: "📸 下載成績卡分享",
     restart: "再玩一次 ↻",
+    backToMenu: "🏠 回到主選單",
     rank_title: "🏆 班級排行榜",
     tab_top: "總榜",
     tab_today: "今日",
@@ -495,6 +497,7 @@ const LANGS = {
     upload: "Upload",
     share: "📸 Download Score Card",
     restart: "Restart ↻",
+    backToMenu: "🏠 Back to Menu",
     rank_title: "🏆 Leaderboard",
     tab_top: "Top",
     tab_today: "Today",
@@ -606,6 +609,8 @@ function updateLanguage() {
     
     const restartBtn = document.getElementById("restartBtn");
     if (restartBtn) restartBtn.innerText = dict.restart;
+    const backToMenuBtn = document.getElementById("backToMenuBtn");
+    if (backToMenuBtn) backToMenuBtn.innerText = dict.backToMenu;
     const shareBtn = document.getElementById("shareBtn");
     if (shareBtn) shareBtn.innerText = dict.share;
     
@@ -1442,6 +1447,16 @@ addEventListener("resize", ()=>{ camera.aspect=innerWidth/innerHeight; camera.up
 // 開始 / 再玩 / 上傳 按鈕
 $("startBtn").addEventListener("click", e=>{ e.stopPropagation(); start(); });
 $("restartBtn").addEventListener("click", e=>{ e.stopPropagation(); start(); });
+$("backToMenuBtn").addEventListener("click", e=>{
+  e.stopPropagation();
+  state = ST.MENU;
+  $("overScreen").classList.add("hidden");
+  $("startScreen").classList.remove("hidden");
+  reset();
+  loadLB();
+  updateLanguage();
+  if($("skillBtn")) $("skillBtn").classList.add("hidden");
+});
 $("submitBtn").addEventListener("click", e=>{ e.stopPropagation(); submitScore(); });
 ["lbStart","lbOver","submitRow"].forEach(id=>{ const el=$(id); if(el) el.addEventListener("click", e=>e.stopPropagation()); });
 
@@ -2099,7 +2114,7 @@ if(new URLSearchParams(location.search).get("autopilot")==="1"){
     }).catch(function(){});
     return;
   }
-  var APP_VERSION='2026.06.23-7';   // 與 sw.js / version.json 同步
+  var APP_VERSION='2026.06.23-8';   // 與 sw.js / version.json 同步
   var reloaded=false;
   function showBar(waiting){
     if(document.getElementById('sw-update-bar')) return;
