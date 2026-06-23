@@ -1416,12 +1416,48 @@ function applyWeather(){
   });
 }
 
-// ===================== 音效（WebAudio）=====================
-let AC = null;
-const ac = () => { if(!AC){ try{ AC = new (AudioContext||webkitAudioContext)(); }catch(e){} } return AC; };
+// ===================== 音效 / BGM（真實 Pixabay 音檔，取代程序合成）=====================
+// SFX : Cartoon Jump (dragon-studio) / Pixel Coin Collect (lumora_studios) /
+//       Game Over Retro 8bit (dragon-studio) / Video Game Power Up (puyopuyomegafan1234) /
+//       Level Up 06 (universfield)
+// BGM : Game 8-bit (inono777) / Kawaii Drops (poorkidmusic) / Retro Arcade Game Music (monume)
+// 授權: Pixabay Content License（CC0 等價，可商用免署名）
+let AC = null;                 // 保留舊欄位讓 visibility / resume 守衛成為 no-op
+function ac(){ return AC; }
+
+const AUD_BASE  = "assets/audio/";
+const SFX_FILES = { flap:"flap.mp3", score:"score.mp3", hit:"hit.mp3", item:"item.mp3", levelup:"levelup.mp3" };
+const SFX_VOL   = { flap:0.42, score:0.55, hit:0.7, item:0.6, levelup:0.6 };
+const SFX_POOL_SIZE = 4;
+const sfxPool = {};
+function getSfx(kind){
+  let pool = sfxPool[kind] || (sfxPool[kind] = []);
+  for(const a of pool){ if(a.paused || a.ended){ a.currentTime = 0; return a; } }   // 找閒置實例
+  if(pool.length < SFX_POOL_SIZE){
+    const a = new Audio(AUD_BASE + SFX_FILES[kind]); a.preload = "auto"; pool.push(a); return a;
+  }
+  const a = pool[0]; a.currentTime = 0; return a;                                   // pool 滿則搶第一個
+}
+function playSfx(kind){
+  if(!SET.sfx) return;
+  const a = getSfx(kind); if(!a) return;
+  a.volume = SFX_VOL[kind] ?? 0.6;
+  a.play().catch(()=>{});                                                           // autoplay 被擋靜靜忽略
+}
+// 對外保留原本函式名 → 各呼叫點完全不用改
+const sFlap  = ()=>playSfx("flap");
+const sScore = (combo)=>playSfx("score");
+const sHit   = ()=>playSfx("hit");
+const sItem  = ()=>playSfx("item");
+const sScene = ()=>playSfx("levelup");
+
+// 技能專用程序合成音（唱歌旋律 / 衝撞 / 十萬伏特）— 保留原本獨特電子音色，獨立 lazy AudioContext
+let SkillAC = null;
 function beep(f, d, type="sine", v=0.16, to=null){
   if(!SET.sfx) return;
-  const a = ac(); if(!a) return;
+  if(!SkillAC){ try{ SkillAC = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return; } }
+  const a = SkillAC; if(!a) return;
+  if(a.state === "suspended") a.resume();
   const o = a.createOscillator(), g = a.createGain();
   o.type=type; o.frequency.value=f;
   if(to) o.frequency.exponentialRampToValueAtTime(to, a.currentTime+d);
@@ -1429,36 +1465,44 @@ function beep(f, d, type="sine", v=0.16, to=null){
   g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime+d);
   o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime+d);
 }
-const sFlap  = ()=>beep(520,0.10,"triangle",0.13,720);
-const sScore = (combo)=>{ const base=720+Math.min(combo,12)*45; beep(base,0.09,"square",0.11); setTimeout(()=>beep(base+260,0.10,"square",0.11),60); };
-const sHit   = ()=>beep(170,0.25,"sawtooth",0.2,60);
-const sItem  = ()=>[660,880,1180].forEach((f,i)=>setTimeout(()=>beep(f,0.10,"sine",0.16),i*55));
-const sScene = ()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,0.14,"sine",0.15),i*80));
 
-// 多首 BGM（每場景不同音階）
-const MELODIES = [
-  [523,659,784,659,587,784,880,784],
-  [440,523,659,523,494,587,659,587],
-  [392,494,587,494,440,587,659,494],
-  [523,587,698,587,523,659,784,659],
-  [587,698,880,698,659,784,988,784],
-  [349,440,523,440,392,523,587,440],
-];
-let bgmTimer = null, bgmI = 0;
-function startBGM(){
-  if(bgmTimer) return; const a = ac(); if(!a) return;
-  bgmTimer = setInterval(()=>{
-    if(state!==ST.PLAY || !SET.bgm) return;
-    const a2 = ac(); if(!a2) return;
-    const mel = MELODIES[sceneIdx] || MELODIES[0];
-    const o=a2.createOscillator(), g=a2.createGain();
-    o.type="triangle"; o.frequency.value = mel[bgmI%mel.length]/2;
-    g.gain.setValueAtTime(0.045, a2.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.0001, a2.currentTime+0.28);
-    o.connect(g); g.connect(a2.destination); o.start(); o.stop(a2.currentTime+0.3);
-    bgmI++;
-  }, 300);
+// ---- BGM：多首輪播 + 平滑淡入淡出（一般關卡隨機選曲，Boss 戰換專屬曲）----
+const BGM_FILES  = ["bgm1.mp3", "bgm2.mp3", "bgm3.mp3"];  // 0,1 一般；2 Boss 戰
+const BGM_NORMAL = [0, 1];
+const BGM_BOSS   = 2;
+const BGM_VOL    = 0.3;
+const bgmEls = [];
+let bgmCur = -1, bgmNormalIdx = 0;
+function getBgm(i){
+  if(!bgmEls[i]){ const a = new Audio(AUD_BASE + BGM_FILES[i]); a.loop = true; a.preload = "auto"; a.volume = 0; bgmEls[i] = a; }
+  return bgmEls[i];
 }
+function bgmFade(a, target, ms, done){
+  const steps = 16, dt = Math.max(16, ms/steps), from = a.volume; let i = 0;
+  const t = setInterval(()=>{
+    i++; a.volume = Math.max(0, Math.min(1, from + (target-from)*(i/steps)));
+    if(i>=steps){ clearInterval(t); if(done) done(); }
+  }, dt);
+}
+function bgmPlay(i){
+  if(!SET.bgm || i === bgmCur) return;
+  if(bgmCur>=0 && bgmEls[bgmCur]){ const old = bgmEls[bgmCur]; bgmFade(old, 0, 600, ()=>{ try{ old.pause(); }catch(e){} }); }
+  bgmCur = i;
+  const a = getBgm(i); a.volume = 0;
+  a.play().then(()=>bgmFade(a, BGM_VOL, 900)).catch(()=>{});
+}
+function startBGM(){
+  if(!SET.bgm) return;
+  bgmNormalIdx = BGM_NORMAL[Math.floor(Math.random()*BGM_NORMAL.length)];           // 每局隨機 → 多樣性
+  bgmPlay(bgmNormalIdx);
+}
+function bgmBoss(on){ if(SET.bgm) bgmPlay(on ? BGM_BOSS : bgmNormalIdx); }
+function stopBGM(){
+  if(bgmCur>=0 && bgmEls[bgmCur]){ const a = bgmEls[bgmCur]; bgmFade(a, 0, 450, ()=>{ try{ a.pause(); }catch(e){} }); }
+  bgmCur = -1;
+}
+function pauseBGM(){ if(bgmCur>=0 && bgmEls[bgmCur]){ try{ bgmEls[bgmCur].pause(); }catch(e){} } }
+function resumeBGM(){ if(SET.bgm && bgmCur>=0 && bgmEls[bgmCur] && state===ST.PLAY){ bgmEls[bgmCur].play().catch(()=>{}); } }
 
 // ===================== 遊戲狀態 =====================
 const ST = { MENU:0, PLAY:1, OVER:2 };
@@ -1702,7 +1746,7 @@ function startBoss(){
     scene.add(bossMesh);
   }
   bossMesh.visible=true; bossMesh.position.set(3, 4.5, -7);
-  banner("⚡ 雷雲 Boss 出現！", 1600); sScene();
+  banner("⚡ 雷雲 Boss 出現！", 1600); sScene(); bgmBoss(true);
 }
 function endBoss(){
   bossActive=false;
@@ -1710,10 +1754,10 @@ function endBoss(){
   score += 15; $("score").textContent = score;
   spawnItem(PX + 5, pika.position.y);   // 獎勵道具
   burst(PX, pika.position.y, 0xffe14d, 22, 6);
-  banner("🎉 Boss 擊破！+15", 1600); sItem();
+  banner("🎉 Boss 擊破！+15", 1600); sItem(); bgmBoss(false);
 }
 function die(){
-  sHit(); state=ST.OVER;
+  sHit(); stopBGM(); state=ST.OVER;
   lastPlaySec = Math.round((performance.now()-playStartMs)/1000);
   bossActive=false; if(bossMesh) bossMesh.visible=false;
   burst(pika.position.x, pika.position.y, 0xff7777, 16, 5);
@@ -1857,6 +1901,7 @@ $("toggleChips").addEventListener("click", e=>{ const b=e.target.closest(".chip"
   const k=b.dataset.tg; SET[k]=!SET[k]; localStorage.setItem("pika3d_"+k, SET[k]?"1":"0");
   if(k==="hc") applyHC();
   if(k==="low") applyPerformanceMode();
+  if(k==="bgm"){ if(SET.bgm){ if(state===ST.PLAY) startBGM(); } else { stopBGM(); } }
   markChips();
 });
 applyHC(); applyPerformanceMode(); markChips(); updateLanguage();
@@ -2461,11 +2506,11 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") {
     isPageVisible = false;
     clock.stop();
-    if (AC && AC.state === "running") AC.suspend();
+    pauseBGM();
   } else {
     isPageVisible = true;
     clock.start();
-    if (AC && SET.sfx && AC.state === "suspended") AC.resume();
+    resumeBGM();
   }
 });
 
@@ -2549,7 +2594,7 @@ if(new URLSearchParams(location.search).get("autopilot")==="1"){
     }).catch(function(){});
     return;
   }
-  var APP_VERSION='2026.06.23-9';   // 與 sw.js / version.json 同步
+  var APP_VERSION='2026.06.23-10';   // 與 sw.js / version.json 同步
   var reloaded=false;
   function showBar(waiting){
     if(document.getElementById('sw-update-bar')) return;
