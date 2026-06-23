@@ -274,9 +274,11 @@ function makeCloud(x){
   const g = new THREE.Group();
   for(let i=0;i<4;i++){
     const r = 0.8 + Math.random()*0.9;
-    const m = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 12), cloudMat);
+    const m = new THREE.Mesh(new THREE.SphereGeometry(r, SET.low ? 8 : 14, SET.low ? 6 : 12), cloudMat);
     m.position.set((Math.random()-0.5)*2.6, (Math.random()-0.5)*0.8, (Math.random()-0.5)*1.2);
+    m.userData.r = r;
     g.add(m);
+    cloudMeshes.push(m);
   }
   g.position.set(x, 2 + Math.random()*4, -6 - Math.random()*8);
   scene.add(g); clouds.push(g); return g;
@@ -293,32 +295,40 @@ const matBrown = new THREE.MeshStandardMaterial({ color:0x7a4a00, roughness:0.7 
 function applySkin(){ matBody.color.set((SKINS[SET.skin]||SKINS.pika).body); }
 applySkin();
 
-const body = new THREE.Mesh(new THREE.SphereGeometry(0.95, 28, 24), matBody);
+const body = new THREE.Mesh(new THREE.SphereGeometry(0.95, SET.low?14:28, SET.low?12:24), matBody);
 body.scale.set(1, 0.96, 0.92); body.castShadow = true; pika.add(body);
+registerPikaGeometry(body, 'sphere', [0.95]);
+
 function ear(side){
   const e = new THREE.Group();
-  const base = new THREE.Mesh(new THREE.ConeGeometry(0.2, 1.0, 14), matBody); base.castShadow = true; e.add(base);
-  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.21, 0.34, 14), matBlack); tip.position.y = 0.45; e.add(tip);
+  const base = new THREE.Mesh(new THREE.ConeGeometry(0.2, 1.0, SET.low?8:14), matBody); base.castShadow = true; e.add(base);
+  registerPikaGeometry(base, 'cone', [0.2, 1.0]);
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.21, 0.34, SET.low?8:14), matBlack); tip.position.y = 0.45; e.add(tip);
+  registerPikaGeometry(tip, 'cone', [0.21, 0.34]);
   e.position.set(-0.12, 0.85, side*0.42); e.rotation.z = side*0.18; e.rotation.x = -side*0.32;
   pika.add(e); return e;
 }
 const earL = ear(1), earR = ear(-1);
 function eye(z){
   const g = new THREE.Group();
-  g.add(new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 14), matBlack));
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.16, SET.low?8:16, SET.low?6:14), matBlack); g.add(m);
+  registerPikaGeometry(m, 'sphere', [0.16]);
   const w = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), matWhite); w.position.set(0.1, 0.07, 0.05); g.add(w);
   g.position.set(0.66, 0.28, z); pika.add(g);
 }
 eye(0.34); eye(-0.34);
 function cheek(z){
-  const c = new THREE.Mesh(new THREE.SphereGeometry(0.18, 14, 12), matRed);
+  const c = new THREE.Mesh(new THREE.SphereGeometry(0.18, SET.low?8:14, SET.low?6:12), matRed);
   c.scale.set(0.6,1,1); c.position.set(0.6, -0.12, z); pika.add(c);
+  registerPikaGeometry(c, 'sphere', [0.18]);
 }
 cheek(0.56); cheek(-0.56);
-const nose = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), matBlack);
+const nose = new THREE.Mesh(new THREE.SphereGeometry(0.05, SET.low?6:8, SET.low?6:8), matBlack);
 nose.position.set(0.94, 0.05, 0); pika.add(nose);
-const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.025, 8, 16, Math.PI), matBrown);
+registerPikaGeometry(nose, 'sphere', [0.05]);
+const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.025, SET.low?4:8, SET.low?8:16, Math.PI), matBrown);
 mouth.position.set(0.9, -0.12, 0); mouth.rotation.z = -Math.PI/2; mouth.rotation.y = Math.PI/2; pika.add(mouth);
+registerPikaGeometry(mouth, 'torus', [0.12, 0.025, Math.PI]);
 const tailShape = new THREE.Shape();
 tailShape.moveTo(0,0); tailShape.lineTo(0.42,0.05); tailShape.lineTo(0.18,0.5);
 tailShape.lineTo(0.62,0.55); tailShape.lineTo(0.25,1.15); tailShape.lineTo(0.3,0.62);
@@ -342,9 +352,9 @@ function makePipe(x){
   // 障礙變化：分數高 / 挑戰難度時，部分柱子上下擺動
   const moving = bossActive || (SET.diff==="hard" && score>=6) || score>=12;
   g.userData.osc = (moving && Math.random()<0.5) ? { amp:0.7+Math.random()*0.9, w:1.0+Math.random()*0.8, ph:Math.random()*6.28 } : null;
-  const mkCol = (cy, h) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(PIPE_R, PIPE_R, h, 20), pipeMat);
+  const mkCol = (cy, h) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(PIPE_R, PIPE_R, h, SET.low ? 8 : 20), pipeMat);
     m.position.set(0, cy, 0); m.castShadow = true; m.receiveShadow = true; return m; };
-  const mkCap = (cy) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(PIPE_R*1.18, PIPE_R*1.18, 0.5, 20), pipeMat);
+  const mkCap = (cy) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(PIPE_R*1.18, PIPE_R*1.18, 0.5, SET.low ? 8 : 20), pipeMat);
     m.position.set(0, cy, 0); m.castShadow = true; return m; };
   const topH = (CEIL_Y + 2) - (gy + GAP_HALF);
   g.add(mkCol(gy + GAP_HALF + topH/2, topH)); g.add(mkCap(gy + GAP_HALF + 0.25));
@@ -374,9 +384,16 @@ function spawnItem(x, y){
   m.userData.type = type; scene.add(m); items.push(m);
 }
 
+// ===================== 幾何體追蹤與效能控制 =====================
+const pikaGeometriesToUpdate = [];
+const cloudMeshes = [];
+function registerPikaGeometry(mesh, type, params) {
+  pikaGeometriesToUpdate.push({ mesh, type, params });
+}
+
 // ===================== 粒子特效 =====================
 const parts = [];
-const partGeo = new THREE.SphereGeometry(0.12, 8, 8);
+let partGeo = new THREE.SphereGeometry(0.12, SET.low ? 4 : 8, SET.low ? 4 : 8);
 function burst(x, y, color, n, power){
   for(let i=0;i<n;i++){
     const mat = new THREE.MeshBasicMaterial({ color });
@@ -391,7 +408,7 @@ function burst(x, y, color, n, power){
 
 // ===================== 天氣粒子 =====================
 const weather = [];
-const wxGeo = new THREE.SphereGeometry(1, 6, 6);
+let wxGeo = new THREE.SphereGeometry(1, SET.low ? 4 : 6, SET.low ? 4 : 6);
 for(let i=0;i<40;i++){
   const m = new THREE.Mesh(wxGeo, new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.85 }));
   m.position.set((Math.random()-0.5)*26, (Math.random()-0.5)*16, -2 - Math.random()*8);
@@ -611,6 +628,37 @@ function applyPerformanceMode(){
       scene.fog.far = 34;
     }
   }
+
+  // 1. 更新皮卡丘所有幾何體
+  pikaGeometriesToUpdate.forEach(item => {
+    item.mesh.geometry.dispose();
+    if (item.type === 'sphere') {
+      const r = item.params[0];
+      item.mesh.geometry = new THREE.SphereGeometry(r, SET.low ? 8 : (r === 0.95 ? 28 : (r === 0.16 ? 16 : 14)), SET.low ? 6 : (r === 0.95 ? 24 : (r === 0.16 ? 14 : 12)));
+    } else if (item.type === 'cone') {
+      const r = item.params[0], h = item.params[1];
+      item.mesh.geometry = new THREE.ConeGeometry(r, h, SET.low ? 8 : 14);
+    } else if (item.type === 'torus') {
+      const r = item.params[0], thick = item.params[1], arc = item.params[2];
+      item.mesh.geometry = new THREE.TorusGeometry(r, thick, SET.low ? 4 : 8, SET.low ? 8 : 16, arc);
+    }
+  });
+
+  // 2. 更新雲朵幾何體
+  cloudMeshes.forEach(m => {
+    m.geometry.dispose();
+    m.geometry = new THREE.SphereGeometry(m.userData.r, SET.low ? 8 : 14, SET.low ? 6 : 12);
+  });
+
+  // 3. 更新粒子幾何體 (共用幾何體)
+  if (wxGeo) wxGeo.dispose();
+  wxGeo = new THREE.SphereGeometry(1, SET.low ? 4 : 6, SET.low ? 4 : 6);
+  weather.forEach(m => { m.geometry = wxGeo; });
+
+  if (partGeo) partGeo.dispose();
+  partGeo = new THREE.SphereGeometry(0.12, SET.low ? 4 : 8, SET.low ? 4 : 8);
+
+  // 4. 重啟材質編譯
   scene.traverse(child => {
     if (child.isMesh && child.material) {
       child.material.needsUpdate = true;
@@ -830,8 +878,91 @@ let fpsLastTime = performance.now();
 let fpsFrames = 0;
 let lowPerfSeconds = 0;
 
+// ===================== 自動效能基準測試 (Benchmark) =====================
+let benchmarkActive = false;
+let benchmarkFrames = 0;
+let benchmarkStartTime = 0;
+const benchmarkDuration = 500; // 測試 0.5 秒
+let benchmarkMeshes = [];
+
+function startBenchmark(){
+  const loadEl = $("loading");
+  if(loadEl) loadEl.innerHTML = '<div class="spinner"></div><div style="margin-top:12px; font-weight:bold; letter-spacing:1px; color:#fff;">偵測裝置效能中...</div>';
+  
+  // 建立高面數球體產生真實 GPU/陰影開銷
+  const testGeo = new THREE.SphereGeometry(1.5, 32, 32);
+  const testMat = new THREE.MeshStandardMaterial({ roughness: 0.5, metalness: 0.5 });
+  for(let i=0; i<30; i++){
+    const m = new THREE.Mesh(testGeo, testMat);
+    m.position.set((Math.random()-0.5)*15, (Math.random()-0.5)*10, -5 - Math.random()*10);
+    m.castShadow = true; m.receiveShadow = true;
+    scene.add(m); benchmarkMeshes.push(m);
+  }
+  benchmarkStartTime = performance.now();
+  benchmarkFrames = 0;
+  benchmarkActive = true;
+}
+
+function endBenchmark(){
+  benchmarkActive = false;
+  benchmarkMeshes.forEach(m => scene.remove(m));
+  if (benchmarkMeshes.length > 0) {
+    benchmarkMeshes[0].geometry.dispose();
+    benchmarkMeshes[0].material.dispose();
+  }
+  benchmarkMeshes = [];
+  
+  const elapsed = performance.now() - benchmarkStartTime;
+  const fps = (benchmarkFrames * 1000) / elapsed;
+  console.log("Benchmark FPS:", fps);
+  
+  if (fps < 45 && localStorage.getItem("pika3d_low") === null) {
+    SET.low = true;
+    localStorage.setItem("pika3d_low", "1");
+    applyPerformanceMode();
+    markChips();
+    banner("⚡ 偵測到裝置效能，已自動為您預設「順暢模式」", 3500);
+  } else {
+    // 即使不需要自動切換，也要根據既有設定套用一次
+    applyPerformanceMode();
+  }
+  
+  const loadEl = $("loading");
+  if(loadEl) loadEl.style.display = "none";
+}
+
+// ===================== 瀏覽器背景節能 (RAF Sleep) =====================
+let isPageVisible = true;
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") {
+    isPageVisible = false;
+    clock.stop();
+    if (AC && AC.state === "running") AC.suspend();
+  } else {
+    isPageVisible = true;
+    clock.start();
+    if (AC && SET.sfx && AC.state === "suspended") AC.resume();
+  }
+});
+
 function loop(){
+  if (!isPageVisible) {
+    requestAnimationFrame(loop);
+    return;
+  }
+
   const dt = Math.min(clock.getDelta(), 0.05);
+
+  if (benchmarkActive) {
+    benchmarkFrames++;
+    renderer.render(scene, camera);
+    if (performance.now() - benchmarkStartTime >= benchmarkDuration) {
+      endBenchmark();
+    }
+    requestAnimationFrame(loop);
+    return;
+  }
+
   update(dt);
   renderer.render(scene, camera);
   
@@ -864,9 +995,9 @@ function loop(){
   }
 
   requestAnimationFrame(loop);
-  if(!started){ started=true; $("loading").style.display="none"; }
+  if(!started){ started=true; } // 遮罩改由 endBenchmark 關閉
 }
-setScene(0, true); reset(); state=ST.MENU; loop();
+setScene(0, true); reset(); state=ST.MENU; startBenchmark(); loop();
 
 // ===================== autopilot（驗證用 ?autopilot=1）=====================
 if(new URLSearchParams(location.search).get("autopilot")==="1"){
@@ -887,7 +1018,7 @@ if(new URLSearchParams(location.search).get("autopilot")==="1"){
 /* ===== Service Worker 註冊 + 版本更新通知列 ===== */
 (function(){
   if(!('serviceWorker' in navigator)) return;
-  var APP_VERSION='2026.06.22-4';   // 與 sw.js / version.json 同步
+  var APP_VERSION='2026.06.22-5';   // 與 sw.js / version.json 同步
   var reloaded=false;
   function showBar(waiting){
     if(document.getElementById('sw-update-bar')) return;

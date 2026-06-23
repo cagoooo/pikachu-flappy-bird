@@ -1,4 +1,4 @@
 {
-    "version":  "2026.06.22-4",
-    "notes":  "v2026.06.22-4: Add low-performance mode & adaptive FPS detection for EdTech tablets"
+    "version":  "2026.06.22-5",
+    "notes":  "v2026.06.22-5: Implement open benchmark, dynamic low-poly switch and visibility sleep"
 }
