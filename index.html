@@ -257,9 +257,9 @@ const SCENES = [
 
 // ===================== 難度 / 角色 設定 =====================
 const DIFF = {
-  easy:   { gapHalf:2.75, speed:4.2, grav:-18.5, flap:7.4, dx:6.2, label:"簡單" },
-  normal: { gapHalf:2.35, speed:4.8, grav:-20.5, flap:7.7, dx:5.6, label:"普通" },
-  hard:   { gapHalf:1.95, speed:5.5, grav:-22.5, flap:8.1, dx:5.2, label:"挑戰" },
+  easy:   { gapHalf:3.85, speed:4.2, grav:-18.5, flap:7.4, dx:7.5, label:"簡單" },
+  normal: { gapHalf:3.3,  speed:4.8, grav:-20.5, flap:7.7, dx:6.8, label:"普通" },
+  hard:   { gapHalf:2.75, speed:5.5, grav:-22.5, flap:8.1, dx:6.0, label:"挑戰" },
 };
 const SKINS = {
   pika:  { body:0xffd21a, name:"皮卡丘" },
@@ -1557,7 +1557,7 @@ if(new URLSearchParams(location.search).get("autopilot")==="1"){
     }).catch(function(){});
     return;
   }
-  var APP_VERSION='2026.06.23-4';   // 與 sw.js / version.json 同步
+  var APP_VERSION='2026.06.23-5';   // 與 sw.js / version.json 同步
   var reloaded=false;
   function showBar(waiting){
     if(document.getElementById('sw-update-bar')) return;
