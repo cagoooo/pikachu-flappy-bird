@@ -116,25 +116,45 @@
   /* ---- 角色大招技能按鈕 ---- */
   .skill-btn-hud {
     position: fixed; right: min(6vw, 36px); bottom: min(6vh, 48px); z-index: 10;
-    width: clamp(64px, 12vw, 84px); height: clamp(64px, 12vw, 84px); border-radius: 50%;
-    background: rgba(255,255,255,0.08); border: 2.5px solid rgba(255,255,255,0.25);
-    color: rgba(255,255,255,0.7); display: flex; align-items: center; justify-content: center;
-    font-size: clamp(12px, 2.2vw, 15px); font-weight: 900; cursor: pointer;
-    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-    box-shadow: 0 8px 24px -8px rgba(0,0,0,0.4);
+    width: clamp(80px, 14vw, 96px); height: clamp(80px, 14vw, 96px); border-radius: 50%;
+    background: rgba(8,12,30,0.45); border: 2.5px solid rgba(255,255,255,0.22);
+    color: rgba(255,255,255,0.85); display: flex; align-items: center; justify-content: center;
+    font-size: clamp(12.5px, 2.3vw, 15px); font-weight: 900; cursor: pointer;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 8px 30px -8px rgba(0,0,0,0.55);
     transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
     user-select: none; -webkit-user-select: none;
   }
   .skill-btn-hud.ready {
     background: linear-gradient(135deg, #ffe14d, #ff9d2e);
     color: #3a2700; border-color: #fff;
-    box-shadow: 0 0 25px rgba(255, 225, 77, 0.8);
+    box-shadow: 0 0 25px rgba(255, 225, 77, 0.85);
     animation: skillPulse 1.2s infinite;
   }
+  .skill-btn-hud.ready::after {
+    content: ''; position: absolute; inset: -5px; border: 2.5px solid #ffe14d;
+    border-radius: 50%; animation: skillRipple 1.4s infinite ease-out;
+  }
   .skill-btn-hud.hidden { display: none !important; }
+  .progress-ring {
+    position: absolute; inset: 0; transform: rotate(-90deg);
+    pointer-events: none; width: 100%; height: 100%;
+  }
+  .progress-ring__circle {
+    transition: stroke-dashoffset 0.1s linear;
+    stroke: #ffffff;
+    stroke-linecap: round;
+  }
+  .skill-text {
+    z-index: 2; text-align: center; line-height: 1.25;
+  }
   @keyframes skillPulse {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.08); }
+  }
+  @keyframes skillRipple {
+    0% { transform: scale(1); opacity: 0.85; }
+    100% { transform: scale(1.35); opacity: 0; }
   }
 </style>
 <script type="importmap">
@@ -151,7 +171,12 @@
     <div id="items"></div>
     <div id="banner"></div>
     <div id="meta"><span class="scene" id="sceneName">晴空</span><br>最佳 <span id="best">0</span></div>
-    <div id="skillBtn" class="skill-btn-hud hidden">⚡ 0/3</div>
+    <div id="skillBtn" class="skill-btn-hud hidden">
+      <svg class="progress-ring">
+        <circle class="progress-ring__circle" stroke-width="4.5" fill="transparent" r="42" cx="48" cy="48" stroke-dasharray="263.89" stroke-dashoffset="263.89"/>
+      </svg>
+      <div class="skill-text" id="skillText">⚡ 0/3</div>
+    </div>
   </div>
 
   <div class="overlay" id="startScreen">
@@ -263,6 +288,7 @@ const maxCharge = 3;
 let singTimer = 0;
 let bodySlamTimer = 0;
 let bodySlamActive = false;
+let lastTapTime = 0;
 function applyDifficulty(){
   const d = DIFF[SET.diff] || DIFF.normal;
   GAP_HALF = d.gapHalf; BASE_SPEED = d.speed; GRAVITY = d.grav; FLAP = d.flap; SPAWN_DX = d.dx;
@@ -365,9 +391,17 @@ function updateSkinDesc() {
   }
 }
 
+let pikaHalo;
+
 function applySkin(){
   const skin = SET.skin;
   matBody.color.set((SKINS[skin]||SKINS.pika).body);
+  
+  if (pikaHalo) {
+    if (skin === "jiggly") pikaHalo.material.color.set(0xffaacc);
+    else if (skin === "snorlax") pikaHalo.material.color.set(0xfcf2d4);
+    else pikaHalo.material.color.set(0xffd54a);
+  }
   
   const isPika = (skin === "pika" || skin === "fire" || skin === "water" || skin === "grass");
   const isJiggly = (skin === "jiggly");
@@ -556,6 +590,12 @@ const sEyeL = makeSnorlaxEye(1), sEyeR = makeSnorlaxEye(-1);
 const sHandL = makeSnorlaxHand(1), sHandR = makeSnorlaxHand(-1);
 const sFootL = makeSnorlaxFoot(1), sFootR = makeSnorlaxFoot(-1);
 snorlaxComponents.push(sEarL, sEarR, sEyeL, sEyeR, snorlaxBelly, snorlaxFace, snorlaxMouth, sHandL, sHandR, sFootL, sFootR);
+// 建立頭頂 3D 浮空光環
+pikaHalo = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.055, 8, 24), new THREE.MeshBasicMaterial({ color: 0xffd54a }));
+pikaHalo.rotation.x = Math.PI / 2;
+pikaHalo.position.set(0, 1.25, 0);
+pikaHalo.visible = false;
+pika.add(pikaHalo);
 
 applySkin();
 
@@ -732,24 +772,46 @@ function setGlow(){
 }
 function updateSkillHUD() {
   const btn = document.getElementById("skillBtn");
-  if (!btn) return;
+  const txt = document.getElementById("skillText");
+  const circle = btn ? btn.querySelector(".progress-ring__circle") : null;
+  if (!btn || !txt) return;
   if (state !== ST.PLAY) {
     btn.classList.add("hidden");
     return;
   }
   btn.classList.remove("hidden");
+  
+  const skin = SET.skin;
+  const C = 263.89; // 2 * Math.PI * 42
+  
   if (singTimer > 0) {
-    btn.innerText = `🎵 唱歌 ${Math.ceil(singTimer)}s`;
+    txt.innerHTML = `🎵 唱歌<br>${Math.ceil(singTimer)}秒`;
     btn.classList.remove("ready");
+    if (circle) {
+      const offset = C - (singTimer / 6.0) * C;
+      circle.style.strokeDashoffset = offset;
+    }
   } else if (bodySlamTimer > 0) {
-    btn.innerText = `💤 壓頂 ${Math.ceil(bodySlamTimer)}s`;
+    txt.innerHTML = `💤 壓頂<br>${Math.ceil(bodySlamTimer)}秒`;
     btn.classList.remove("ready");
+    if (circle) {
+      const offset = C - (bodySlamTimer / 4.5) * C;
+      circle.style.strokeDashoffset = offset;
+    }
   } else {
-    btn.innerText = `⚡ ${skillCharge}/${maxCharge}`;
+    if (circle) circle.style.strokeDashoffset = C;
     if (skillCharge >= maxCharge) {
       btn.classList.add("ready");
+      if (skin === "jiggly") {
+        txt.innerHTML = `🎵 唱歌<br>催眠`;
+      } else if (skin === "snorlax") {
+        txt.innerHTML = `💤 泰山<br>壓頂`;
+      } else {
+        txt.innerHTML = `⚡ 十萬<br>伏特`;
+      }
     } else {
       btn.classList.remove("ready");
+      txt.innerHTML = `⚡ 能量<br>${skillCharge}/${maxCharge}`;
     }
   }
 }
@@ -892,7 +954,17 @@ function flap(){
 }
 addEventListener("pointerdown", e=>{
   if(e.target.closest("#skillBtn")) return;
-  if(state===ST.PLAY){ e.preventDefault(); flap(); }
+  if(state===ST.PLAY){
+    e.preventDefault();
+    const now = performance.now();
+    if(now - lastTapTime < 280 && skillCharge >= maxCharge){
+      castSkill();
+      lastTapTime = now;
+      return;
+    }
+    lastTapTime = now;
+    flap();
+  }
 }, {passive:false});
 addEventListener("keydown", e=>{
   if(e.code==="Space"||e.code==="ArrowUp"){
@@ -1229,6 +1301,17 @@ function update(dt){
     pika.rotation.x = 0;
   }
 
+  // 3D 浮空光環動態
+  if (pikaHalo) {
+    if (skillCharge >= maxCharge && state === ST.PLAY) {
+      pikaHalo.visible = true;
+      pikaHalo.rotation.z += dt * 3.5;
+      pikaHalo.position.y = 1.25 + Math.sin(performance.now() * 0.005) * 0.08;
+    } else {
+      pikaHalo.visible = false;
+    }
+  }
+
   // 柱子移動 + 擺動
   pipes.forEach(p=>{
     p.position.x -= speed*dt;
@@ -1474,7 +1557,7 @@ if(new URLSearchParams(location.search).get("autopilot")==="1"){
     }).catch(function(){});
     return;
   }
-  var APP_VERSION='2026.06.23-3';   // 與 sw.js / version.json 同步
+  var APP_VERSION='2026.06.23-4';   // 與 sw.js / version.json 同步
   var reloaded=false;
   function showBar(waiting){
     if(document.getElementById('sw-update-bar')) return;
