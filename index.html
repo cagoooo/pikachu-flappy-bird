@@ -45,53 +45,123 @@
     font-size:clamp(13px,2.4vw,18px); text-shadow:0 2px 6px rgba(0,0,0,.5); line-height:1.5; }
   #meta .scene{ background:rgba(0,0,0,.28); padding:2px 10px; border-radius:999px; display:inline-block; }
 
+  /* ---- RWD 雙欄配置 ---- */
+  .menu-header {
+    width: 100%;
+    max-width: 900px;
+    margin-bottom: 8px;
+    text-align: center;
+    pointer-events: auto;
+  }
+  .menu-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    max-width: 900px;
+    pointer-events: auto;
+  }
+  .menu-left, .menu-right {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 380px;
+  }
+  @media (min-width: 768px) {
+    .menu-container {
+      flex-direction: row;
+      align-items: stretch;
+      justify-content: center;
+      gap: 32px;
+    }
+    .menu-left, .menu-right {
+      max-width: 420px;
+      flex: 1;
+    }
+    .overlay {
+      justify-content: center;
+      padding-top: 3vh;
+      padding-bottom: 6vh;
+    }
+  }
+
   /* ---- 疊層面板 ---- */
   .overlay{ position:fixed; inset:0; z-index:10; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; text-align:center; color:#fff;
-    background:radial-gradient(circle at 50% 35%,rgba(20,30,60,.30),rgba(8,12,30,.66));
-    backdrop-filter:blur(2px); padding:24px; cursor:pointer; }
-  .overlay.hidden{ display:none; }
-  .title{ font-size:clamp(34px,7vw,68px); font-weight:900; letter-spacing:2px;
-    text-shadow:0 6px 0 rgba(0,0,0,.25), 0 0 30px rgba(120,180,255,.5); margin-bottom:6px; }
-  .title .bolt{ color:#ffe14d; }
-  .sub{ font-size:clamp(15px,2.8vw,22px); opacity:.95; margin-bottom:16px; font-weight:700; }
-  .big{ font-size:clamp(22px,4vw,34px); font-weight:900; margin:10px 0 4px; }
-  .cta{ margin-top:18px; font-size:clamp(16px,3vw,22px); font-weight:800;
-    background:linear-gradient(135deg,#ffe14d,#ff9d2e); color:#3a2700;
-    padding:14px 34px; border-radius:999px; box-shadow:0 10px 26px -6px rgba(255,160,40,.7);
-    animation:pulse 1.4s ease-in-out infinite; border:none; font-family:inherit; cursor:pointer; }
-  @keyframes pulse{ 0%,100%{ transform:scale(1);} 50%{ transform:scale(1.06);} }
-  .credit{ position:fixed; bottom:14px; left:0; right:0; text-align:center;
-    font-size:12px; color:rgba(255,255,255,.85); text-shadow:0 1px 4px rgba(0,0,0,.6); }
-  .credit a{ color:#ffe14d; font-weight:700; text-decoration:none; }
+    align-items:center; justify-content:flex-start; text-align:center; color:#fff;
+    background:radial-gradient(circle at 50% 30%, rgba(18, 28, 60, 0.70), rgba(7, 10, 24, 0.90));
+    backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); padding:24px; cursor:default;
+    overflow-y:auto; padding-top:4vh; padding-bottom:6vh; }
+  .overlay.hidden{ display:none !important; }
+  .title{ font-size:clamp(30px,6vw,54px); font-weight:900; letter-spacing:2px;
+    text-shadow:0 4px 0 rgba(0,0,0,.25), 0 0 25px rgba(120,180,255,.45); margin-bottom:6px; line-height:1.2; }
+  .title .bolt{ color:#ffe14d; display:inline-block; animation:boltSpark 2s infinite ease-in-out; }
+  @keyframes boltSpark { 0%, 100% { transform: scale(1) rotate(0deg); filter: drop-shadow(0 0 2px #ffe14d); } 50% { transform: scale(1.15) rotate(15deg); filter: drop-shadow(0 0 8px #ffb300); } }
+  .sub{ font-size:clamp(14px,2.5vw,18px); opacity:.85; margin-bottom:12px; font-weight:700; letter-spacing:1px; color:#cde2ff; }
+  .big{ font-size:clamp(18px,3vw,24px); font-weight:800; color:#ffffff; background:rgba(255, 255, 255, 0.06); padding:8px 20px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); margin:8px 0 14px; display:inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+  .big span { color: #ffe14d; font-weight: 900; }
+  .cta{ margin-top:16px; font-size:clamp(16px,2.8vw,20px); font-weight:900; letter-spacing:1px;
+    background:linear-gradient(135deg,#ffd000,#ff8c00); color:#221300;
+    padding:14px 40px; border-radius:999px; box-shadow:0 8px 24px rgba(255,140,0,.35), inset 0 2px 2px rgba(255,255,255,0.3);
+    border:none; font-family:inherit; cursor:pointer; transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35); }
+  .cta:hover { transform: translateY(-2.5px) scale(1.02); box-shadow: 0 12px 28px rgba(255, 140, 0, 0.5); }
+  .cta:active { transform: translateY(1px) scale(0.98); }
+  .credit{ position:fixed; bottom:14px; left:0; right:0; text-align:center; z-index:11;
+    font-size:12px; color:rgba(255,255,255,.6); text-shadow:0 1px 3px rgba(0,0,0,.8); pointer-events:auto; }
+  .credit a{ color:#ffe14d; font-weight:700; text-decoration:none; transition: color 0.2s; }
+  .credit a:hover{ color:#ffb300; text-decoration:underline; }
   #loading{ position:fixed; inset:0; z-index:20; display:flex; align-items:center; justify-content:center;
-    background:#0b1020; color:#ffe14d; font-size:20px; font-weight:800; letter-spacing:1px; }
+    background:#070a18; color:#ffe14d; font-size:20px; font-weight:800; letter-spacing:1px; }
+
   /* ---- 班級排行榜 ---- */
-  .overlay{ overflow-y:auto; justify-content:flex-start; padding-top:5vh; padding-bottom:7vh; }
-  .lb{ background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.25);
-    border-radius:16px; padding:12px 16px; margin:14px 0; width:min(92vw,360px); }
-  .lb-title{ font-weight:900; font-size:18px; margin-bottom:8px; }
-  .lb-list{ list-style:none; margin:0; padding:0; max-height:30vh; overflow-y:auto; text-align:left; }
-  .lb-list li{ display:flex; justify-content:space-between; gap:10px; padding:5px 8px;
-    border-radius:8px; font-weight:700; font-size:15px; }
-  .lb-list li:nth-child(odd){ background:rgba(255,255,255,.08); }
-  .lb-list li .rank{ width:30px; color:#ffe14d; flex:none; }
-  .lb-list li .nm{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .lb-list li .sc{ font-weight:900; flex:none; }
-  .lb-list li.me{ background:rgba(255,225,77,.30); }
+  .lb{ background:rgba(12, 18, 38, 0.65); border:1px solid rgba(255,255,255,.11);
+    border-radius:20px; padding:16px; margin:8px 0; width:100%; box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.08), 0 12px 30px rgba(0, 0, 0, 0.3); }
+  .lb-title{ font-weight:900; font-size:17px; margin-bottom:12px; letter-spacing:1px; color:#ffe14d; }
+  .lb-list{ list-style:none; margin:0; padding:0; max-height:28vh; overflow-y:auto; text-align:left; }
+  .lb-list::-webkit-scrollbar { width: 6px; }
+  .lb-list::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); border-radius: 99px; }
+  .lb-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 99px; }
+  .lb-list li{ display:flex; justify-content:space-between; gap:10px; padding:6px 10px;
+    border-radius:8px; font-weight:700; font-size:14px; margin-bottom:4px; align-items:center; }
+  .lb-list li:nth-child(odd){ background:rgba(255,255,255,.03); }
+  .lb-list li .rank{ width:26px; color:#ffb300; flex:none; font-weight:900; }
+  .lb-list li .nm{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#e0e8ff; }
+  .lb-list li .sc{ font-weight:900; flex:none; color:#ffe14d; }
+  .lb-list li.me{ background:rgba(255, 225, 77, 0.18); border: 1px solid rgba(255, 225, 77, 0.3); }
   .lb-empty{ opacity:.75; justify-content:center !important; }
-  .submit-row{ display:flex; gap:8px; margin:8px 0 2px; width:min(92vw,360px); }
-  .submit-row input{ flex:1; min-width:0; border:none; border-radius:10px; padding:10px 12px; font:inherit; font-size:16px; }
-  .btn-go{ border:none; border-radius:10px; padding:10px 16px; font-weight:800; font:inherit;
-    cursor:pointer; background:linear-gradient(135deg,#ffe14d,#ff9d2e); color:#3a2700; }
-  .btn-go:disabled{ opacity:.55; }
+  .submit-row{ display:flex; gap:8px; margin:8px 0 2px; width:100%; }
+  .submit-row input{ flex:1; min-width:0; border:1px solid rgba(255,255,255,0.15); border-radius:10px; padding:10px 12px; font:inherit; font-size:15px; background:rgba(0,0,0,0.25); color:#fff; transition: border-color 0.2s; }
+  .submit-row input:focus{ outline:none; border-color:#ff9d2e; }
+  .btn-go{ border:none; border-radius:10px; padding:10px 16px; font-weight:900; font:inherit;
+    cursor:pointer; background:linear-gradient(135deg,#ffe14d,#ff9d2e); color:#3a2700; transition: transform 0.15s, opacity 0.15s; }
+  .btn-go:hover:not(:disabled) { transform: scale(1.02); }
+  .btn-go:active:not(:disabled) { transform: scale(0.98); }
+  .btn-go:disabled{ opacity:.55; cursor:not-allowed; }
+
   /* ---- 選項（難度 / 角色 / 設定）---- */
-  .opt{ width:min(92vw,360px); margin:7px 0; }
-  .opt h4{ font-size:12px; opacity:.8; margin-bottom:6px; font-weight:800; letter-spacing:2px; }
-  .chips{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
-  .chip{ border:1px solid rgba(255,255,255,.35); background:rgba(255,255,255,.10); color:#fff;
-    border-radius:999px; padding:8px 14px; font:inherit; font-weight:800; font-size:14px; cursor:pointer; }
-  .chip.on{ background:linear-gradient(135deg,#ffe14d,#ff9d2e); color:#3a2700; border-color:transparent; }
+  .opt{ width:100%; margin:8px 0; }
+  .opt h4{ font-size:13px; color:rgba(255,255,255,0.5); font-weight:800; text-transform:uppercase; letter-spacing:2px; margin-bottom:8px; text-align:left; padding-left:8px; border-left:3px solid #ff9d2e; }
+  .chips{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-start; }
+  .chip{ border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); color:#e0e8ff;
+    border-radius:999px; padding:8px 14px; font:inherit; font-weight:800; font-size:13.5px; cursor:pointer; transition: all 0.2s ease; }
+  .chip:hover { background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.3); transform:translateY(-1px); }
+  .chip.on{ background:linear-gradient(135deg,#ffe14d,#ff9d2e); color:#221300; border-color:transparent; box-shadow: 0 4px 12px rgba(255,157,46,0.35); }
+  #skinDesc { font-size:13px; font-weight:700; color:#ffe14d; margin:6px 0 10px; min-height:22px; text-shadow:0 1.5px 3px rgba(0,0,0,0.5); padding:8px 12px; background:rgba(0,0,0,0.22); border-radius:10px; width:100%; border-left:3.5px solid #ffe14d; display:flex; align-items:center; justify-content:center; box-shadow: 0 3px 10px rgba(0,0,0,0.15); line-height: 1.4; text-align: left; }
+  #skinDesc:empty { display: none; }
+
+  /* ---- 排行榜分頁 ---- */
+  .lb-tabs{ display:flex; gap:6px; margin-bottom:10px; }
+  .lbtab{ flex:1; border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:6px 4px; font:inherit; font-weight:800;
+    font-size:12.5px; cursor:pointer; background:rgba(255,255,255,.06); color:#cbd5e1; transition: all 0.2s; }
+  .lbtab:hover{ background:rgba(255,255,255,.12); color:#fff; }
+  .lbtab.on{ background:linear-gradient(135deg,#ffe14d,#ff9d2e); color:#221300; border-color:transparent; box-shadow: 0 2px 8px rgba(255,157,46,0.25); }
+  .lb-list li .cls{ font-size:11px; opacity:.75; margin:0 6px; flex:none; background:rgba(255,255,255,0.1); padding:1px 5px; border-radius:4px; }
+  #classInput{ width:96px; flex:none !important; }
+  .btn-lite{ border:1px solid rgba(255,255,255,.2); background:rgba(255,255,255,.06); color:#cbd5e1;
+    border-radius:999px; padding:10px 18px; font:inherit; font-weight:800; font-size:14px; cursor:pointer;
+    margin-top:8px; text-decoration:none; display:inline-block; text-align:center; transition: all 0.2s; width: 100%; }
   /* ---- 高對比（無障礙）---- */
   body.hc #score{ -webkit-text-stroke:2px #000; }
   body.hc #meta, body.hc #combo, body.hc #items{ -webkit-text-stroke:1px #000; }
@@ -180,62 +250,89 @@
   </div>
 
   <div class="overlay" id="startScreen">
-    <div class="title">皮卡丘天空大冒險 <span class="bolt">⚡</span></div>
-    <div class="sub">選好難度與角色，點「開始」起飛！</div>
-    <div class="big">最佳紀錄：<span id="bestStart">0</span></div>
-    <div class="opt"><h4>難度</h4><div class="chips" id="diffChips">
-      <button class="chip" data-diff="easy">簡單</button>
-      <button class="chip" data-diff="normal">普通</button>
-      <button class="chip" data-diff="hard">挑戰</button>
-    </div></div>
-    <div class="opt"><h4>角色</h4><div class="chips" id="skinChips">
-      <button class="chip" data-skin="pika">皮卡丘⚡</button>
-      <button class="chip" data-skin="fire">烈焰🔥</button>
-      <button class="chip" data-skin="water">海洋🌊</button>
-      <button class="chip" data-skin="grass">森林🌿</button>
-      <button class="chip" data-skin="jiggly">胖丁🎵</button>
-      <button class="chip" data-skin="snorlax">卡比獸💤</button>
-    </div></div>
-    <div id="skinDesc" style="font-size:12.5px; opacity:.95; margin-top:6px; font-weight:700; color:#ffe14d; min-height:18px; text-shadow: 0 1px 2px rgba(0,0,0,0.5);"></div>
-    <div class="opt"><h4>設定</h4><div class="chips" id="toggleChips">
-      <button class="chip" data-tg="bgm">🎵 音樂</button>
-      <button class="chip" data-tg="sfx">🔊 音效</button>
-      <button class="chip" data-tg="hc">🔆 高對比</button>
-      <button class="chip" data-tg="low">⚡ 順暢(低畫質)</button>
-    </div></div>
-    <div class="lb" id="lbStart">
-      <div class="lb-title">🏆 班級排行榜</div>
-      <div class="lb-tabs" id="tabsStart">
-        <button class="lbtab on" data-tab="top">總榜</button>
-        <button class="lbtab" data-tab="today">今日</button>
-        <button class="lbtab" data-tab="class">我班</button>
-      </div>
-      <ol class="lb-list" id="lbStartList"><li class="lb-empty">載入中…</li></ol>
+    <div class="menu-header">
+      <div class="title">皮卡丘天空大冒險 <span class="bolt">⚡</span></div>
+      <div class="sub">選好難度與角色，點「開始」起飛！</div>
     </div>
-    <button class="cta" id="startBtn">點擊開始 ▶</button>
-    <a class="btn-lite" id="posterLink" href="assets/qr-poster.png" target="_blank" rel="noopener">📋 班級海報（掃碼玩）</a>
+    <div class="menu-container">
+      <div class="menu-left">
+        <div class="big">最佳紀錄：<span id="bestStart">0</span></div>
+        <div class="opt">
+          <h4>難度</h4>
+          <div class="chips" id="diffChips">
+            <button class="chip" data-diff="easy">簡單</button>
+            <button class="chip" data-diff="normal">普通</button>
+            <button class="chip" data-diff="hard">挑戰</button>
+          </div>
+        </div>
+        <div class="opt">
+          <h4>角色</h4>
+          <div class="chips" id="skinChips">
+            <button class="chip" data-skin="pika">皮卡丘⚡</button>
+            <button class="chip" data-skin="fire">烈焰🔥</button>
+            <button class="chip" data-skin="water">海洋🌊</button>
+            <button class="chip" data-skin="grass">森林🌿</button>
+            <button class="chip" data-skin="jiggly">胖丁🎵</button>
+            <button class="chip" data-skin="snorlax">卡比獸💤</button>
+          </div>
+        </div>
+        <div id="skinDesc"></div>
+        <div class="opt">
+          <h4>設定</h4>
+          <div class="chips" id="toggleChips">
+            <button class="chip" data-tg="bgm">🎵 音樂</button>
+            <button class="chip" data-tg="sfx">🔊 音效</button>
+            <button class="chip" data-tg="hc">🔆 高對比</button>
+            <button class="chip" data-tg="low">⚡ 順暢(低畫質)</button>
+          </div>
+        </div>
+        <button class="cta" id="startBtn" style="width: 100%;">點擊開始 ▶</button>
+      </div>
+      
+      <div class="menu-right">
+        <div class="lb" id="lbStart">
+          <div class="lb-title">🏆 班級排行榜</div>
+          <div class="lb-tabs" id="tabsStart">
+            <button class="lbtab on" data-tab="top">總榜</button>
+            <button class="lbtab" data-tab="today">今日</button>
+            <button class="lbtab" data-tab="class">我班</button>
+          </div>
+          <ol class="lb-list" id="lbStartList"><li class="lb-empty">載入中…</li></ol>
+        </div>
+        <a class="btn-lite" id="posterLink" href="assets/qr-poster.png" target="_blank" rel="noopener">📋 班級海報（掃碼玩）</a>
+      </div>
+    </div>
   </div>
 
   <div class="overlay hidden" id="overScreen">
-    <div class="title">遊戲結束</div>
-    <div class="big">得分 <span id="finalScore">0</span>　最佳 <span id="finalBest">0</span></div>
-    <div class="sub" id="overTip">再接再厲！</div>
-    <div class="submit-row" id="submitRow">
-      <input id="nameInput" maxlength="12" placeholder="暱稱" autocomplete="off">
-      <input id="classInput" maxlength="8" placeholder="班級" autocomplete="off">
-      <button id="submitBtn" class="btn-go">上傳</button>
+    <div class="menu-header">
+      <div class="title">遊戲結束</div>
+      <div class="sub" id="overTip">再接再厲！</div>
     </div>
-    <div class="lb" id="lbOver">
-      <div class="lb-title">🏆 班級排行榜</div>
-      <div class="lb-tabs" id="tabsOver">
-        <button class="lbtab on" data-tab="top">總榜</button>
-        <button class="lbtab" data-tab="today">今日</button>
-        <button class="lbtab" data-tab="class">我班</button>
+    <div class="menu-container">
+      <div class="menu-left">
+        <div class="big">得分 <span id="finalScore">0</span>　最佳 <span id="finalBest">0</span></div>
+        <div class="submit-row" id="submitRow">
+          <input id="nameInput" maxlength="12" placeholder="暱稱" autocomplete="off">
+          <input id="classInput" maxlength="8" placeholder="班級" autocomplete="off">
+          <button id="submitBtn" class="btn-go">上傳</button>
+        </div>
+        <button class="cta" id="restartBtn" style="width: 100%; margin-top: 16px;">再玩一次 ↻</button>
       </div>
-      <ol class="lb-list" id="lbOverList"><li class="lb-empty">載入中…</li></ol>
+      
+      <div class="menu-right">
+        <div class="lb" id="lbOver">
+          <div class="lb-title">🏆 班級排行榜</div>
+          <div class="lb-tabs" id="tabsOver">
+            <button class="lbtab on" data-tab="top">總榜</button>
+            <button class="lbtab" data-tab="today">今日</button>
+            <button class="lbtab" data-tab="class">我班</button>
+          </div>
+          <ol class="lb-list" id="lbOverList"><li class="lb-empty">載入中…</li></ol>
+        </div>
+        <button class="btn-lite" id="shareBtn" style="width: 100%; margin-top: 8px;">📸 下載成績卡分享</button>
+      </div>
     </div>
-    <button class="btn-lite" id="shareBtn">📸 下載成績卡分享</button>
-    <button class="cta" id="restartBtn">再玩一次 ↻</button>
   </div>
 
   <div class="credit">⚡ 皮卡丘天空大冒險 3D｜Made with ❤️ by
@@ -1557,7 +1654,7 @@ if(new URLSearchParams(location.search).get("autopilot")==="1"){
     }).catch(function(){});
     return;
   }
-  var APP_VERSION='2026.06.23-5';   // 與 sw.js / version.json 同步
+  var APP_VERSION='2026.06.23-6';   // 與 sw.js / version.json 同步
   var reloaded=false;
   function showBar(waiting){
     if(document.getElementById('sw-update-bar')) return;
