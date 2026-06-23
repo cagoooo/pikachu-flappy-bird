@@ -1,4 +1,4 @@
-const BUILD_VERSION = '2026.06.23-10';      // 每次部署改它（或跑 bump-version.ps1）
+const BUILD_VERSION = '2026.06.23-11';      // 每次部署改它（或跑 bump-version.ps1）
 const CACHE = 'pika3d-' + BUILD_VERSION;
 const THREE_CDN = 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 const PRECACHE = [
@@ -6,9 +6,14 @@ const PRECACHE = [
   './manifest.webmanifest',
   './assets/icon-192.png', './assets/icon-512.png',
   './assets/icon-192-maskable.png', './assets/icon-512-maskable.png',
-  // 短音效 precache → 離線也有即時回饋；BGM 較大改由 fetch cache-first 首播後快取
+  // 短音效 precache → 離線也有即時回饋；BGM 與較大語音改由 fetch cache-first 首播後快取
   './assets/audio/flap.mp3', './assets/audio/score.mp3', './assets/audio/hit.mp3',
   './assets/audio/item.mp3', './assets/audio/levelup.mp3',
+  './assets/audio/item_star.mp3', './assets/audio/item_shield.mp3', './assets/audio/item_dbl.mp3',
+  './assets/audio/record_break.mp3', './assets/audio/quiz_correct.mp3', './assets/audio/quiz_wrong.mp3',
+  './assets/audio/pika_jump.mp3', './assets/audio/jiggly_jump.mp3', './assets/audio/snorlax_jump.mp3',
+  './assets/audio/pika_record.mp3', './assets/audio/jiggly_record.mp3', './assets/audio/snorlax_record.mp3',
+  './assets/audio/pika_skill.mp3',
   THREE_CDN,                                 // 把 Three.js 一起 precache → 可離線玩
 ];
 

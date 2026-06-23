@@ -474,6 +474,67 @@
     0%, 100% { box-shadow: 0 0 4px rgba(255,255,255,0.2); }
     50% { box-shadow: 0 0 12px rgba(255,225,77,0.5); border-color: rgba(255,225,77,0.5); }
   }
+
+  /* 音量滑桿樣式 */
+  .vol-sliders {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 14px;
+    width: 100%;
+  }
+  .vol-slider-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 8px 14px;
+    border-radius: 10px;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .vol-slider-row:hover {
+    background: rgba(255, 255, 255, 0.09);
+    border-color: rgba(255, 255, 255, 0.16);
+  }
+  .vol-slider-row span {
+    font-size: 13px;
+    color: #cbd5e1;
+    min-width: 90px;
+    font-weight: 500;
+  }
+  .vol-slider-row input[type="range"] {
+    flex: 1;
+    margin-left: 12px;
+    cursor: pointer;
+    height: 6px;
+    border-radius: 3px;
+    outline: none;
+    accent-color: #ff9d2e;
+    background: rgba(255, 255, 255, 0.14);
+    border: none;
+    -webkit-appearance: none;
+  }
+  .vol-slider-row input[type="range"]::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 3px;
+  }
+  .vol-slider-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 14px;
+    width: 14px;
+    border-radius: 50%;
+    background: #ffe14d;
+    cursor: pointer;
+    margin-top: -4px;
+    box-shadow: 0 0 6px rgba(255, 157, 46, 0.6);
+    transition: transform 0.1s;
+  }
+  .vol-slider-row input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+  }
 </style>
 <script type="importmap">
 {
@@ -539,6 +600,16 @@
             <button class="chip" data-tg="hc">🔆 高對比</button>
             <button class="chip" data-tg="low">⚡ 順暢(低畫質)</button>
             <button class="chip" id="btnLang">🌐 EN</button>
+          </div>
+          <div class="vol-sliders">
+            <div class="vol-slider-row">
+              <span id="labelVolBgm">🎵 音樂: 30%</span>
+              <input type="range" id="sliderVolBgm" min="0" max="100" value="30">
+            </div>
+            <div class="vol-slider-row">
+              <span id="labelVolSfx">🔊 音效: 60%</span>
+              <input type="range" id="sliderVolSfx" min="0" max="100" value="60">
+            </div>
           </div>
         </div>
         <button class="cta" id="startBtn" style="width: 100%;">點擊開始 ▶</button>
@@ -685,7 +756,11 @@ const SET = {
   hc:   localStorage.getItem("pika3d_hc") === "1",
   low:  localStorage.getItem("pika3d_low") === "1",
   lang: localStorage.getItem("pika3d_lang") || "zh",
+  bgmVol: parseInt(localStorage.getItem("pika3d_bgm_vol") || "30"),
+  sfxVol: parseInt(localStorage.getItem("pika3d_sfx_vol") || "60"),
 };
+let lastBgmVol = SET.bgmVol || 30;
+let lastSfxVol = SET.sfxVol || 60;
 
 // ===================== 多國語言詞典 (i18n) =====================
 const LANGS = {
@@ -737,6 +812,8 @@ const LANGS = {
     desc_grass: "🌿 森林皮卡丘：身手輕盈敏捷，起跳與下墜均衡！",
     desc_jiggly: "🎵 胖丁（氣球寶可夢）：輕飄飄體質，重力較輕、點擊上升較平緩🎈",
     desc_snorlax: "💤 卡比獸（瞌睡巨獸）：體重 460kg 重量級！墜落極快、點擊上升有爆發力🦖",
+    vol_bgm: "🎵 背景音樂: ",
+    vol_sfx: "🔊 效果音效: ",
   },
   en: {
     title: "Pika Sky Adventure",
@@ -786,6 +863,8 @@ const LANGS = {
     desc_grass: "🌿 Leaf Pikachu: Nimble and light, very responsive!",
     desc_jiggly: "🎵 Jigglypuff: Balloon body! Low gravity, floats gently 🎈",
     desc_snorlax: "💤 Snorlax: Heavy and drops fast, but can [Body Slam] to break pipes!",
+    vol_bgm: "🎵 Music: ",
+    vol_sfx: "🔊 SFX: ",
   }
 };
 
@@ -838,6 +917,11 @@ function updateLanguage() {
       toggleChips.querySelector('[data-tg="hc"]').innerText = dict.hc;
       toggleChips.querySelector('[data-tg="low"]').innerText = dict.low;
     }
+    
+    const labelBgm = document.getElementById("labelVolBgm");
+    if (labelBgm) labelBgm.innerText = dict.vol_bgm + SET.bgmVol + "%";
+    const labelSfx = document.getElementById("labelVolSfx");
+    if (labelSfx) labelSfx.innerText = dict.vol_sfx + SET.sfxVol + "%";
     
     const startBtn = document.getElementById("startBtn");
     if (startBtn) startBtn.innerText = dict.start;
@@ -1417,19 +1501,44 @@ function applyWeather(){
 }
 
 // ===================== 音效 / BGM（真實 Pixabay 音檔，取代程序合成）=====================
-// SFX : Cartoon Jump (dragon-studio) / Pixel Coin Collect (lumora_studios) /
-//       Game Over Retro 8bit (dragon-studio) / Video Game Power Up (puyopuyomegafan1234) /
-//       Level Up 06 (universfield)
-// BGM : Game 8-bit (inono777) / Kawaii Drops (poorkidmusic) / Retro Arcade Game Music (monume)
-// 授權: Pixabay Content License（CC0 等價，可商用免署名）
 let AC = null;                 // 保留舊欄位讓 visibility / resume 守衛成為 no-op
 function ac(){ return AC; }
 
 const AUD_BASE  = "assets/audio/";
-const SFX_FILES = { flap:"flap.mp3", score:"score.mp3", hit:"hit.mp3", item:"item.mp3", levelup:"levelup.mp3" };
-const SFX_VOL   = { flap:0.42, score:0.55, hit:0.7, item:0.6, levelup:0.6 };
+const SFX_FILES = {
+  flap: "flap.mp3",
+  score: "score.mp3",
+  hit: "hit.mp3",
+  item: "item.mp3",
+  levelup: "levelup.mp3",
+  item_star: "item_star.mp3",
+  item_shield: "item_shield.mp3",
+  item_dbl: "item_dbl.mp3",
+  record_break: "record_break.mp3",
+  quiz_correct: "quiz_correct.mp3",
+  quiz_wrong: "quiz_wrong.mp3",
+  pika_jump: "pika_jump.mp3",
+  pika_skill: "pika_skill.mp3",
+  pika_record: "pika_record.mp3",
+  jiggly_jump: "jiggly_jump.mp3",
+  jiggly_skill: "jiggly_skill.mp3",
+  jiggly_record: "jiggly_record.mp3",
+  snorlax_jump: "snorlax_jump.mp3",
+  snorlax_skill: "snorlax_skill.mp3",
+  snorlax_record: "snorlax_record.mp3"
+};
+const SFX_VOL = {
+  flap: 0.42, score: 0.55, hit: 0.7, item: 0.6, levelup: 0.6,
+  item_star: 0.65, item_shield: 0.65, item_dbl: 0.65,
+  record_break: 0.75, quiz_correct: 0.6, quiz_wrong: 0.6,
+  pika_jump: 0.75, pika_skill: 0.85, pika_record: 0.85,
+  jiggly_jump: 0.7, jiggly_skill: 0.8, jiggly_record: 0.8,
+  snorlax_jump: 0.7, snorlax_skill: 0.8, snorlax_record: 0.8
+};
 const SFX_POOL_SIZE = 4;
 const sfxPool = {};
+let lastVoiceTime = 0;
+
 function getSfx(kind){
   let pool = sfxPool[kind] || (sfxPool[kind] = []);
   for(const a of pool){ if(a.paused || a.ended){ a.currentTime = 0; return a; } }   // 找閒置實例
@@ -1438,41 +1547,106 @@ function getSfx(kind){
   }
   const a = pool[0]; a.currentTime = 0; return a;                                   // pool 滿則搶第一個
 }
-function playSfx(kind){
-  if(!SET.sfx) return;
+function playSfx(kind, rate = 1.0){
+  if(!SET.sfx || SET.sfxVol === 0) return;
   const a = getSfx(kind); if(!a) return;
-  a.volume = SFX_VOL[kind] ?? 0.6;
+  a.volume = (SFX_VOL[kind] ?? 0.6) * (SET.sfxVol / 100);
+  a.playbackRate = rate;
   a.play().catch(()=>{});                                                           // autoplay 被擋靜靜忽略
 }
+
 // 對外保留原本函式名 → 各呼叫點完全不用改
-const sFlap  = ()=>playSfx("flap");
-const sScore = (combo)=>playSfx("score");
+const sFlap  = ()=>{
+  playSfx("flap");
+  const now = performance.now();
+  if (Math.random() < 0.3 && now - lastVoiceTime > 400) {
+    lastVoiceTime = now;
+    const skin = SET.skin;
+    if (skin === "pika" || skin === "fire" || skin === "water" || skin === "grass") {
+      playSfx("pika_jump");
+    } else if (skin === "jiggly") {
+      playSfx("jiggly_jump");
+    } else if (skin === "snorlax") {
+      playSfx("snorlax_jump");
+    }
+  }
+};
+const sScore = (combo)=>{
+  const rate = 1.0 + Math.min(8, Math.max(0, combo - 1)) * 0.08;
+  playSfx("score", rate);
+};
 const sHit   = ()=>playSfx("hit");
 const sItem  = ()=>playSfx("item");
 const sScene = ()=>playSfx("levelup");
 
+function playItemSfx(type) {
+  if (type === "star") playSfx("item_star");
+  else if (type === "shield") playSfx("item_shield");
+  else if (type === "dbl") playSfx("item_dbl");
+  else playSfx("item");
+}
+
+function sCorrect() { playSfx("quiz_correct"); }
+var sWrong = () => { playSfx("quiz_wrong"); };
+
 // 技能專用程序合成音（唱歌旋律 / 衝撞 / 十萬伏特）— 保留原本獨特電子音色，獨立 lazy AudioContext
 let SkillAC = null;
 function beep(f, d, type="sine", v=0.16, to=null){
-  if(!SET.sfx) return;
+  if(!SET.sfx || SET.sfxVol === 0) return;
   if(!SkillAC){ try{ SkillAC = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return; } }
   const a = SkillAC; if(!a) return;
   if(a.state === "suspended") a.resume();
   const o = a.createOscillator(), g = a.createGain();
   o.type=type; o.frequency.value=f;
   if(to) o.frequency.exponentialRampToValueAtTime(to, a.currentTime+d);
-  g.gain.setValueAtTime(v, a.currentTime);
+  g.gain.setValueAtTime(v * (SET.sfxVol / 100), a.currentTime);
   g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime+d);
   o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime+d);
 }
 
-// ---- BGM：多首輪播 + 平滑淡入淡出（一般關卡隨機選曲，Boss 戰換專屬曲）----
-const BGM_FILES  = ["bgm1.mp3", "bgm2.mp3", "bgm3.mp3"];  // 0,1 一般；2 Boss 戰
-const BGM_NORMAL = [0, 1];
-const BGM_BOSS   = 2;
-const BGM_VOL    = 0.3;
+// ---- BGM：多首輪播 + 平滑淡入淡出（切場景平滑換曲）----
+const BGM_FILES  = [
+  "bgm_sunny.mp3",   // 0: 晴空/櫻花/冰川
+  "bgm_warm.mp3",    // 1: 黃昏/森林
+  "bgm_starry.mp3",  // 2: 星夜
+  "bgm_aurora.mp3",  // 3: 極光
+  "bgm_deepsea.mp3", // 4: 深海
+  "bgm_volcano.mp3", // 5: 火山
+  "bgm_space.mp3",   // 6: 太空
+  "bgm_boss.mp3",    // 7: Boss戰
+  "bgm_menu.mp3",    // 8: 主選單
+  "bgm_over.mp3"     // 9: 結算
+];
+
+const BGM_VOL_MAP = [
+  0.26, // bgm_sunny
+  0.26, // bgm_warm
+  0.24, // bgm_starry
+  0.24, // bgm_aurora
+  0.28, // bgm_deepsea
+  0.22, // bgm_volcano
+  0.24, // bgm_space
+  0.28, // bgm_boss
+  0.28, // bgm_menu
+  0.28  // bgm_over
+];
+
+function getSceneBgmIdx(sceneIdx) {
+  if (sceneIdx === 0 || sceneIdx === 4 || sceneIdx === 8) return 0; // Sunny
+  if (sceneIdx === 1) return 1; // Warm
+  if (sceneIdx === 2) return 2; // Starry
+  if (sceneIdx === 3) return 3; // Aurora
+  if (sceneIdx === 5) return 4; // DeepSea
+  if (sceneIdx === 6) return 5; // Volcano
+  if (sceneIdx === 7) return 6; // Space
+  return 0;
+}
+
 const bgmEls = [];
-let bgmCur = -1, bgmNormalIdx = 0;
+let bgmCur = -1;
+let bgmDucked = false;
+let duckRestoreTimer = null;
+
 function getBgm(i){
   if(!bgmEls[i]){ const a = new Audio(AUD_BASE + BGM_FILES[i]); a.loop = true; a.preload = "auto"; a.volume = 0; bgmEls[i] = a; }
   return bgmEls[i];
@@ -1480,29 +1654,65 @@ function getBgm(i){
 function bgmFade(a, target, ms, done){
   const steps = 16, dt = Math.max(16, ms/steps), from = a.volume; let i = 0;
   const t = setInterval(()=>{
-    i++; a.volume = Math.max(0, Math.min(1, from + (target-from)*(i/steps)));
+    i++;
+    // 動態讀取最新音量設定，避免淡入過程中玩家調整滑桿音量無效
+    const curTarget = (a === bgmEls[bgmCur] && !bgmDucked) ? (BGM_VOL_MAP[bgmCur] ?? 0.3) * (SET.bgmVol / 100) : target;
+    a.volume = Math.max(0, Math.min(1, from + (curTarget-from)*(i/steps)));
     if(i>=steps){ clearInterval(t); if(done) done(); }
   }, dt);
 }
 function bgmPlay(i){
-  if(!SET.bgm || i === bgmCur) return;
-  if(bgmCur>=0 && bgmEls[bgmCur]){ const old = bgmEls[bgmCur]; bgmFade(old, 0, 600, ()=>{ try{ old.pause(); }catch(e){} }); }
+  if(!SET.bgm || SET.bgmVol === 0 || i === bgmCur) return;
+  if(bgmCur>=0 && bgmEls[bgmCur]){ const old = bgmEls[bgmCur]; bgmFade(old, 0, 500, ()=>{ try{ old.pause(); }catch(e){} }); }
   bgmCur = i;
   const a = getBgm(i); a.volume = 0;
-  a.play().then(()=>bgmFade(a, BGM_VOL, 900)).catch(()=>{});
+  const maxVol = (BGM_VOL_MAP[i] ?? 0.3) * (SET.bgmVol / 100);
+  a.play().then(()=>bgmFade(a, maxVol, 800)).catch(()=>{});
 }
 function startBGM(){
-  if(!SET.bgm) return;
-  bgmNormalIdx = BGM_NORMAL[Math.floor(Math.random()*BGM_NORMAL.length)];           // 每局隨機 → 多樣性
-  bgmPlay(bgmNormalIdx);
+  if(!SET.bgm || SET.bgmVol === 0) return;
+  bgmPlay(getSceneBgmIdx(sceneIdx));
 }
-function bgmBoss(on){ if(SET.bgm) bgmPlay(on ? BGM_BOSS : bgmNormalIdx); }
+function playMenuBGM(){
+  if(!SET.bgm || SET.bgmVol === 0) return;
+  bgmPlay(8);
+}
+function playOverBGM(){
+  if(!SET.bgm || SET.bgmVol === 0) return;
+  bgmPlay(9);
+}
+function bgmBoss(on){ if(SET.bgm) bgmPlay(on ? 7 : getSceneBgmIdx(sceneIdx)); }
 function stopBGM(){
   if(bgmCur>=0 && bgmEls[bgmCur]){ const a = bgmEls[bgmCur]; bgmFade(a, 0, 450, ()=>{ try{ a.pause(); }catch(e){} }); }
   bgmCur = -1;
 }
 function pauseBGM(){ if(bgmCur>=0 && bgmEls[bgmCur]){ try{ bgmEls[bgmCur].pause(); }catch(e){} } }
-function resumeBGM(){ if(SET.bgm && bgmCur>=0 && bgmEls[bgmCur] && state===ST.PLAY){ bgmEls[bgmCur].play().catch(()=>{}); } }
+function resumeBGM(){ if(SET.bgm && bgmCur>=0 && bgmEls[bgmCur] && (state===ST.PLAY || (state===ST.MENU && bgmCur===8) || (state===ST.OVER && bgmCur===9))){ bgmEls[bgmCur].play().catch(()=>{}); } }
+
+// Ducking 混音
+function duckBGM(duration = 1800) {
+  if (!SET.bgm || bgmCur < 0 || !bgmEls[bgmCur] || SET.bgmVol === 0) return;
+  const currentBgm = bgmEls[bgmCur];
+  const originalVol = (BGM_VOL_MAP[bgmCur] ?? 0.3) * (SET.bgmVol / 100);
+  const duckedVol = originalVol * 0.25;
+  
+  currentBgm.volume = duckedVol;
+  bgmDucked = true;
+  
+  if (duckRestoreTimer) clearTimeout(duckRestoreTimer);
+  duckRestoreTimer = setTimeout(() => {
+    if (bgmCur >= 0 && bgmEls[bgmCur]) {
+      const newOriginalVol = (BGM_VOL_MAP[bgmCur] ?? 0.3) * (SET.bgmVol / 100);
+      bgmFade(bgmEls[bgmCur], newOriginalVol, 500, () => {
+        bgmDucked = false;
+      });
+    }
+  }, duration);
+}
+function playVoice(kind, duration = 1800) {
+  playSfx(kind);
+  duckBGM(duration);
+}
 
 // ===================== 遊戲狀態 =====================
 const ST = { MENU:0, PLAY:1, OVER:2 };
@@ -1510,6 +1720,7 @@ let state = ST.MENU;
 let vy=0, score=0, frame=0, speed=BASE_SPEED;
 let sceneIdx=0, trans=0, transFrom=0, transTo=0;
 let combo=0, invincT=0, dblT=0, shieldOn=false;
+let hasRecordBrokenThisGame = false;
 let playStartMs=0, lastPlaySec=0;
 let bossActive=false, bossPipesLeft=0, bossMesh=null, bossT=0;
 let best = +(localStorage.getItem("pika3d_best")||0);
@@ -1689,13 +1900,16 @@ function castSkill() {
     singTimer = 6.0;
     banner("🎵 胖丁唱歌！全場催眠減速 6s", 2200);
     playSingMelody();
+    playVoice("jiggly_skill", 2200);
   } else if (skin === "snorlax") {
     bodySlamTimer = 4.5;
     bodySlamActive = true;
     banner("💤 卡比獸：泰山壓頂衝撞準備！", 2200);
     playThudSound();
+    playVoice("snorlax_skill", 1600);
   } else {
     castThunderbolt();
+    playVoice("pika_skill", 1500);
   }
   updateSkillHUD();
 }
@@ -1704,7 +1918,7 @@ function activate(type){
   if(type==="star") invincT = Math.max(invincT, ITEMS.star.dur);
   else if(type==="dbl") dblT = Math.max(dblT, ITEMS.dbl.dur);
   else if(type==="shield") shieldOn = true;
-  sItem(); updateItemsHUD(); setGlow();
+  playItemSfx(type); updateItemsHUD(); setGlow();
   if (navigator.vibrate) navigator.vibrate(65);
 }
 
@@ -1712,6 +1926,7 @@ function reset(){
   applyDifficulty();
   vy=0; score=0; frame=0; speed=BASE_SPEED; lastGapY=0;
   combo=0; invincT=0; dblT=0; shieldOn=false;
+  hasRecordBrokenThisGame = false;
   skillCharge = 0; singTimer = 0; bodySlamTimer = 0; bodySlamActive = false;
   pipes.forEach(p=>scene.remove(p)); pipes.length=0;
   clearItems(); clearParts();
@@ -1754,14 +1969,18 @@ function endBoss(){
   score += 15; $("score").textContent = score;
   spawnItem(PX + 5, pika.position.y);   // 獎勵道具
   burst(PX, pika.position.y, 0xffe14d, 22, 6);
-  banner("🎉 Boss 擊破！+15", 1600); sItem(); bgmBoss(false);
+  banner("🎉 Boss 擊破！+15", 1600); playItemSfx("star"); bgmBoss(false);
 }
 function die(){
-  sHit(); stopBGM(); state=ST.OVER;
+  sHit(); playOverBGM(); state=ST.OVER;
   lastPlaySec = Math.round((performance.now()-playStartMs)/1000);
   bossActive=false; if(bossMesh) bossMesh.visible=false;
   burst(pika.position.x, pika.position.y, 0xff7777, 16, 5);
+  const isNewRecord = (score > best && best > 0) || (score >= best && score > 0 && best === 0);
   best = Math.max(best, score); localStorage.setItem("pika3d_best", best);
+  if (isNewRecord) {
+    setTimeout(() => { playSfx("record_break"); }, 600);
+  }
   $("finalScore").textContent = score; $("finalBest").textContent = best;
   $("best").textContent = best;
   $("overTip").textContent = score>=30 ? "太厲害了！⚡⚡⚡" : score>=10 ? "不錯喔，再挑戰看看！" : "再接再厲！";
@@ -1815,6 +2034,7 @@ $("backToMenuBtn").addEventListener("click", e=>{
   loadLB();
   updateLanguage();
   if($("skillBtn")) $("skillBtn").classList.add("hidden");
+  playMenuBGM();
 });
 $("submitBtn").addEventListener("click", e=>{ e.stopPropagation(); submitScore(); });
 ["lbStart","lbOver","submitRow"].forEach(id=>{ const el=$(id); if(el) el.addEventListener("click", e=>e.stopPropagation()); });
@@ -1827,6 +2047,25 @@ function markChips(){
   $("toggleChips").querySelector('[data-tg="sfx"]').classList.toggle("on", SET.sfx);
   $("toggleChips").querySelector('[data-tg="hc"]').classList.toggle("on", SET.hc);
   $("toggleChips").querySelector('[data-tg="low"]').classList.toggle("on", SET.low);
+
+  const sliderBgm = $("sliderVolBgm");
+  if(sliderBgm) {
+    sliderBgm.value = SET.bgmVol;
+    const labelBgm = $("labelVolBgm");
+    if(labelBgm) {
+      const dict = LANGS[SET.lang] || LANGS.zh;
+      labelBgm.innerText = dict.vol_bgm + SET.bgmVol + "%";
+    }
+  }
+  const sliderSfx = $("sliderVolSfx");
+  if(sliderSfx) {
+    sliderSfx.value = SET.sfxVol;
+    const labelSfx = $("labelVolSfx");
+    if(labelSfx) {
+      const dict = LANGS[SET.lang] || LANGS.zh;
+      labelSfx.innerText = dict.vol_sfx + SET.sfxVol + "%";
+    }
+  }
 }
 function applyHC(){ document.body.classList.toggle("hc", SET.hc); }
 function applyPerformanceMode(){
@@ -1898,12 +2137,78 @@ $("toggleChips").addEventListener("click", e=>{ const b=e.target.closest(".chip"
     updateLanguage();
     return;
   }
-  const k=b.dataset.tg; SET[k]=!SET[k]; localStorage.setItem("pika3d_"+k, SET[k]?"1":"0");
-  if(k==="hc") applyHC();
-  if(k==="low") applyPerformanceMode();
-  if(k==="bgm"){ if(SET.bgm){ if(state===ST.PLAY) startBGM(); } else { stopBGM(); } }
+  const k=b.dataset.tg;
+  if(k==="bgm"){
+    SET.bgm = !SET.bgm;
+    localStorage.setItem("pika3d_bgm", SET.bgm?"1":"0");
+    if(SET.bgm){
+      SET.bgmVol = lastBgmVol > 0 ? lastBgmVol : 30;
+      localStorage.setItem("pika3d_bgm_vol", SET.bgmVol);
+      if(state===ST.PLAY) startBGM();
+      else if(state===ST.MENU) playMenuBGM();
+    } else {
+      lastBgmVol = SET.bgmVol || lastBgmVol;
+      SET.bgmVol = 0;
+      localStorage.setItem("pika3d_bgm_vol", 0);
+      stopBGM();
+    }
+  } else if(k==="sfx"){
+    SET.sfx = !SET.sfx;
+    localStorage.setItem("pika3d_sfx", SET.sfx?"1":"0");
+    if(SET.sfx){
+      SET.sfxVol = lastSfxVol > 0 ? lastSfxVol : 60;
+      localStorage.setItem("pika3d_sfx_vol", SET.sfxVol);
+    } else {
+      lastSfxVol = SET.sfxVol || lastSfxVol;
+      SET.sfxVol = 0;
+      localStorage.setItem("pika3d_sfx_vol", 0);
+    }
+  } else {
+    SET[k]=!SET[k]; localStorage.setItem("pika3d_"+k, SET[k]?"1":"0");
+    if(k==="hc") applyHC();
+    if(k==="low") applyPerformanceMode();
+  }
   markChips();
 });
+
+$("sliderVolBgm").addEventListener("input", e=>{
+  SET.bgmVol = parseInt(e.target.value);
+  localStorage.setItem("pika3d_bgm_vol", SET.bgmVol);
+  if(SET.bgmVol > 0){
+    SET.bgm = true;
+    localStorage.setItem("pika3d_bgm", "1");
+    lastBgmVol = SET.bgmVol;
+  } else {
+    SET.bgm = false;
+    localStorage.setItem("pika3d_bgm", "0");
+  }
+  if(bgmCur>=0 && bgmEls[bgmCur]){
+    bgmEls[bgmCur].volume = (BGM_VOL_MAP[bgmCur] ?? 0.3) * (SET.bgmVol / 100);
+  }
+  if(SET.bgm && state===ST.PLAY && (bgmCur < 0 || bgmEls[bgmCur].paused)){
+    startBGM();
+  } else if(SET.bgm && state===ST.MENU && (bgmCur < 0 || bgmEls[bgmCur].paused)){
+    playMenuBGM();
+  } else if(!SET.bgm){
+    stopBGM();
+  }
+  markChips();
+});
+
+$("sliderVolSfx").addEventListener("input", e=>{
+  SET.sfxVol = parseInt(e.target.value);
+  localStorage.setItem("pika3d_sfx_vol", SET.sfxVol);
+  if(SET.sfxVol > 0){
+    SET.sfx = true;
+    localStorage.setItem("pika3d_sfx", "1");
+    lastSfxVol = SET.sfxVol;
+  } else {
+    SET.sfx = false;
+    localStorage.setItem("pika3d_sfx", "0");
+  }
+  markChips();
+});
+
 applyHC(); applyPerformanceMode(); markChips(); updateLanguage();
 
 // ===================== 班級排行榜 + 成績卡 =====================
@@ -2358,6 +2663,16 @@ function update(dt){
       }
       let gain = 1; if(dblT>0) gain*=2; if(perfect && combo>=3) gain+=1;
       score += gain; sScore(combo);
+      if (best > 0 && score > best && !hasRecordBrokenThisGame) {
+        hasRecordBrokenThisGame = true;
+        const skin = SET.skin;
+        let vName = "pika_record";
+        if (skin === "jiggly") vName = "jiggly_record";
+        else if (skin === "snorlax") vName = "snorlax_record";
+        playVoice(vName, 2200);
+        setTimeout(() => { playSfx("record_break"); }, 300);
+        banner(SET.lang === "en" ? "🏆 New Best Score!!!" : "🏆 突破最佳紀錄！！！", 2200);
+      }
       $("score").textContent = score; updateComboHUD();
       burst(PX+0.5, pika.position.y, perfect?0xffe14d:0xffffff, perfect?8:4, 2.5);
       if(combo>0 && combo%5===0) burst(PX, pika.position.y, 0xff5ad6, 14, 4);
@@ -2566,7 +2881,7 @@ function loop(){
   requestAnimationFrame(loop);
   if(!started){ started=true; } // 遮罩改由 endBenchmark 關閉
 }
-setScene(0, true); reset(); state=ST.MENU; startBenchmark(); loop();
+setScene(0, true); reset(); state=ST.MENU; startBenchmark(); playMenuBGM(); loop();
 
 // ===================== autopilot（驗證用 ?autopilot=1）=====================
 if(new URLSearchParams(location.search).get("autopilot")==="1"){
@@ -2594,7 +2909,7 @@ if(new URLSearchParams(location.search).get("autopilot")==="1"){
     }).catch(function(){});
     return;
   }
-  var APP_VERSION='2026.06.23-10';   // 與 sw.js / version.json 同步
+  var APP_VERSION='2026.06.23-11';   // 與 sw.js / version.json 同步
   var reloaded=false;
   function showBar(waiting){
     if(document.getElementById('sw-update-bar')) return;
