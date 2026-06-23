@@ -144,7 +144,10 @@
       <button class="chip" data-skin="fire">烈焰🔥</button>
       <button class="chip" data-skin="water">海洋🌊</button>
       <button class="chip" data-skin="grass">森林🌿</button>
+      <button class="chip" data-skin="jiggly">胖丁🎵</button>
+      <button class="chip" data-skin="snorlax">卡比獸💤</button>
     </div></div>
+    <div id="skinDesc" style="font-size:12.5px; opacity:.95; margin-top:6px; font-weight:700; color:#ffe14d; min-height:18px; text-shadow: 0 1px 2px rgba(0,0,0,0.5);"></div>
     <div class="opt"><h4>設定</h4><div class="chips" id="toggleChips">
       <button class="chip" data-tg="bgm">🎵 音樂</button>
       <button class="chip" data-tg="sfx">🔊 音效</button>
@@ -214,6 +217,8 @@ const SKINS = {
   fire:  { body:0xff7a3c, name:"烈焰" },
   water: { body:0x59b6ff, name:"海洋" },
   grass: { body:0x7bd66a, name:"森林" },
+  jiggly: { body:0xffaacc, name:"胖丁" },
+  snorlax: { body:0x2e6670, name:"卡比獸" },
 };
 const SET = {
   diff: localStorage.getItem("pika3d_diff") || "normal",
@@ -232,6 +237,13 @@ let GAP_HALF = 2.35, BASE_SPEED = 4.8, GRAVITY = -20.5, FLAP = 7.7, SPAWN_DX = 5
 function applyDifficulty(){
   const d = DIFF[SET.diff] || DIFF.normal;
   GAP_HALF = d.gapHalf; BASE_SPEED = d.speed; GRAVITY = d.grav; FLAP = d.flap; SPAWN_DX = d.dx;
+  if(SET.skin === "jiggly") {
+    GRAVITY *= 0.72;
+    FLAP *= 0.8;
+  } else if(SET.skin === "snorlax") {
+    GRAVITY *= 1.25;
+    FLAP *= 1.2;
+  }
 }
 applyDifficulty();
 
@@ -285,15 +297,52 @@ function makeCloud(x){
 }
 for(let i=0;i<8;i++) makeCloud((Math.random()-0.5)*40);
 
-// ===================== 皮卡丘 =====================
+// ===================== 皮卡丘、胖丁與卡比獸 =====================
 const pika = new THREE.Group();
 const matBody  = new THREE.MeshStandardMaterial({ color:0xffd21a, roughness:0.55 });
 const matBlack = new THREE.MeshStandardMaterial({ color:0x2b2b2b, roughness:0.6 });
 const matRed   = new THREE.MeshStandardMaterial({ color:0xff5a5a, roughness:0.7 });
 const matWhite = new THREE.MeshStandardMaterial({ color:0xffffff, roughness:0.4 });
 const matBrown = new THREE.MeshStandardMaterial({ color:0x7a4a00, roughness:0.7 });
-function applySkin(){ matBody.color.set((SKINS[SET.skin]||SKINS.pika).body); }
-applySkin();
+
+// 胖丁與卡比獸專用材質
+const matBeige = new THREE.MeshStandardMaterial({ color:0xfcf2d4, roughness:0.8 }); // 卡比獸肚子與臉部米白
+const matJigglyEyeBlue = new THREE.MeshStandardMaterial({ color:0x00a8a8, roughness:0.4 }); // 胖丁大眼睛藍綠
+
+const pikaComponents = [];
+const jigglyComponents = [];
+const snorlaxComponents = [];
+
+const SKIN_DESCS = {
+  pika: "⚡ 皮卡丘：標準平衡型，操控靈活自如！",
+  fire: "🔥 烈焰皮卡丘：熱情奔放，標準物理設定。",
+  water: "🌊 海洋皮卡丘：沉穩如水，標準物理設定。",
+  grass: "🌿 森林皮卡丘：自然和諧，標準物理設定。",
+  jiggly: "🎵 胖丁（氣球寶可夢）：輕飄飄體質，重力較輕、點擊上升較平緩🎈",
+  snorlax: "💤 卡比獸（瞌睡巨獸）：體重 460kg 重量級！墜落極快、點擊上升有爆發力🦖",
+};
+
+function updateSkinDesc() {
+  const el = document.getElementById("skinDesc");
+  if (el) {
+    el.innerText = SKIN_DESCS[SET.skin] || "";
+  }
+}
+
+function applySkin(){
+  const skin = SET.skin;
+  matBody.color.set((SKINS[skin]||SKINS.pika).body);
+  
+  const isPika = (skin === "pika" || skin === "fire" || skin === "water" || skin === "grass");
+  const isJiggly = (skin === "jiggly");
+  const isSnorlax = (skin === "snorlax");
+  
+  pikaComponents.forEach(c => c.visible = isPika);
+  jigglyComponents.forEach(c => c.visible = isJiggly);
+  snorlaxComponents.forEach(c => c.visible = isSnorlax);
+  
+  updateSkinDesc();
+}
 
 const body = new THREE.Mesh(new THREE.SphereGeometry(0.95, SET.low?14:28, SET.low?12:24), matBody);
 body.scale.set(1, 0.96, 0.92); body.castShadow = true; pika.add(body);
@@ -309,32 +358,170 @@ function ear(side){
   pika.add(e); return e;
 }
 const earL = ear(1), earR = ear(-1);
+pikaComponents.push(earL, earR);
+
 function eye(z){
   const g = new THREE.Group();
   const m = new THREE.Mesh(new THREE.SphereGeometry(0.16, SET.low?8:16, SET.low?6:14), matBlack); g.add(m);
   registerPikaGeometry(m, 'sphere', [0.16]);
   const w = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), matWhite); w.position.set(0.1, 0.07, 0.05); g.add(w);
   g.position.set(0.66, 0.28, z); pika.add(g);
+  return g;
 }
-eye(0.34); eye(-0.34);
+const eyeL = eye(0.34), eyeR = eye(-0.34);
+pikaComponents.push(eyeL, eyeR);
+
 function cheek(z){
   const c = new THREE.Mesh(new THREE.SphereGeometry(0.18, SET.low?8:14, SET.low?6:12), matRed);
   c.scale.set(0.6,1,1); c.position.set(0.6, -0.12, z); pika.add(c);
   registerPikaGeometry(c, 'sphere', [0.18]);
+  return c;
 }
-cheek(0.56); cheek(-0.56);
+const cheekL = cheek(0.56), cheekR = cheek(-0.56);
+pikaComponents.push(cheekL, cheekR);
+
 const nose = new THREE.Mesh(new THREE.SphereGeometry(0.05, SET.low?6:8, SET.low?6:8), matBlack);
 nose.position.set(0.94, 0.05, 0); pika.add(nose);
 registerPikaGeometry(nose, 'sphere', [0.05]);
+pikaComponents.push(nose);
+
 const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.025, SET.low?4:8, SET.low?8:16, Math.PI), matBrown);
 mouth.position.set(0.9, -0.12, 0); mouth.rotation.z = -Math.PI/2; mouth.rotation.y = Math.PI/2; pika.add(mouth);
 registerPikaGeometry(mouth, 'torus', [0.12, 0.025, Math.PI]);
+pikaComponents.push(mouth);
+
 const tailShape = new THREE.Shape();
 tailShape.moveTo(0,0); tailShape.lineTo(0.42,0.05); tailShape.lineTo(0.18,0.5);
 tailShape.lineTo(0.62,0.55); tailShape.lineTo(0.25,1.15); tailShape.lineTo(0.3,0.62);
 tailShape.lineTo(0.02,0.55); tailShape.lineTo(0.22,0.12); tailShape.lineTo(0,0);
 const tail = new THREE.Mesh(new THREE.ExtrudeGeometry(tailShape, {depth:0.12, bevelEnabled:false}), matBody);
 tail.position.set(-0.9, -0.2, 0); tail.rotation.z = 0.5; tail.castShadow = true; pika.add(tail);
+pikaComponents.push(tail);
+
+// ===================== 胖丁特有 3D 部件 =====================
+function makeJigglyEar(side) {
+  const e = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.6, SET.low?8:14), matBody);
+  base.rotation.x = Math.PI/2; base.castShadow = true; e.add(base);
+  registerPikaGeometry(base, 'cone', [0.3, 0.6]);
+
+  const inner = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.45, SET.low?8:14), matBlack);
+  inner.rotation.x = Math.PI/2; inner.position.set(0.05, 0, 0); e.add(inner);
+  registerPikaGeometry(inner, 'cone', [0.2, 0.45]);
+
+  e.position.set(0.1, 0.8, side * 0.48); e.rotation.z = -0.3; e.rotation.y = side * 0.2;
+  pika.add(e); return e;
+}
+
+function makeJigglyEye(side) {
+  const g = new THREE.Group();
+  const bg = new THREE.Mesh(new THREE.SphereGeometry(0.28, SET.low?8:16, SET.low?6:14), matWhite);
+  bg.scale.set(0.3, 1, 1); g.add(bg);
+  registerPikaGeometry(bg, 'sphere', [0.28]);
+
+  const iris = new THREE.Mesh(new THREE.SphereGeometry(0.22, SET.low?8:16, SET.low?6:14), matJigglyEyeBlue);
+  iris.scale.set(0.32, 0.8, 0.8); iris.position.set(0.02, 0, 0); g.add(iris);
+  registerPikaGeometry(iris, 'sphere', [0.22]);
+
+  const pupil1 = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), matWhite);
+  pupil1.position.set(0.12, 0.06, 0.05); g.add(pupil1);
+  const pupil2 = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), matWhite);
+  pupil2.position.set(0.12, -0.08, -0.05); g.add(pupil2);
+
+  g.position.set(0.72, 0.22, side * 0.42); g.rotation.y = side * 0.25;
+  pika.add(g); return g;
+}
+
+function makeJigglyHand(side) {
+  const h = new THREE.Mesh(new THREE.SphereGeometry(0.18, SET.low?8:12, SET.low?6:10), matBody);
+  h.scale.set(1.5, 0.9, 0.9); h.position.set(0.45, -0.3, side * 0.65);
+  h.rotation.z = -0.2; h.rotation.y = -side * 0.4; h.castShadow = true;
+  pika.add(h); registerPikaGeometry(h, 'sphere', [0.18]);
+  return h;
+}
+
+function makeJigglyFoot(side) {
+  const f = new THREE.Mesh(new THREE.SphereGeometry(0.2, SET.low?8:12, SET.low?6:10), matBody);
+  f.scale.set(1.4, 0.8, 1.2); f.position.set(0.1, -0.85, side * 0.45);
+  f.rotation.z = 0.2; f.castShadow = true;
+  pika.add(f); registerPikaGeometry(f, 'sphere', [0.2]);
+  return f;
+}
+
+const jigglyHair = new THREE.Group();
+const curl1 = new THREE.Mesh(new THREE.SphereGeometry(0.32, SET.low?8:14, SET.low?6:12), matBody);
+curl1.position.set(0.3, 0.95, 0); curl1.scale.set(1.2, 0.9, 0.9); curl1.castShadow = true; jigglyHair.add(curl1);
+registerPikaGeometry(curl1, 'sphere', [0.32]);
+const curl2 = new THREE.Mesh(new THREE.SphereGeometry(0.22, SET.low?8:14, SET.low?6:12), matBody);
+curl2.position.set(0.48, 0.9, 0.1); curl2.castShadow = true; jigglyHair.add(curl2);
+registerPikaGeometry(curl2, 'sphere', [0.22]);
+pika.add(jigglyHair);
+
+const jEarL = makeJigglyEar(1), jEarR = makeJigglyEar(-1);
+const jEyeL = makeJigglyEye(1), jEyeR = makeJigglyEye(-1);
+const jHandL = makeJigglyHand(1), jHandR = makeJigglyHand(-1);
+const jFootL = makeJigglyFoot(1), jFootR = makeJigglyFoot(-1);
+jigglyComponents.push(jEarL, jEarR, jEyeL, jEyeR, jigglyHair, jHandL, jHandR, jFootL, jFootR);
+
+// ===================== 卡比獸特有 3D 部件 =====================
+const snorlaxBelly = new THREE.Mesh(new THREE.SphereGeometry(0.72, SET.low?10:20, SET.low?8:16), matBeige);
+snorlaxBelly.scale.set(0.4, 0.9, 0.95); snorlaxBelly.position.set(0.55, -0.2, 0);
+pika.add(snorlaxBelly); registerPikaGeometry(snorlaxBelly, 'sphere', [0.72]);
+
+const snorlaxFace = new THREE.Mesh(new THREE.SphereGeometry(0.5, SET.low?8:16, SET.low?6:14), matBeige);
+snorlaxFace.scale.set(0.4, 0.85, 0.9); snorlaxFace.position.set(0.68, 0.24, 0);
+pika.add(snorlaxFace); registerPikaGeometry(snorlaxFace, 'sphere', [0.5]);
+
+function makeSnorlaxEar(side) {
+  const e = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.45, SET.low?8:12), matBody);
+  e.rotation.x = side * 0.15; e.rotation.z = -0.3; e.position.set(0.05, 0.85, side * 0.38);
+  e.castShadow = true; pika.add(e);
+  registerPikaGeometry(e, 'cone', [0.22, 0.45]);
+  return e;
+}
+
+function makeSnorlaxEye(side) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.04, 0.18), matBlack);
+  m.position.set(1.02, 0.3, side * 0.2); m.rotation.y = side * 0.2;
+  pika.add(m); return m;
+}
+
+const snorlaxMouth = new THREE.Group();
+const mouthLine = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.02, SET.low?4:6, SET.low?6:10, Math.PI), matBlack);
+mouthLine.position.set(1.0, 0.08, 0); mouthLine.rotation.y = Math.PI/2; mouthLine.rotation.z = Math.PI; snorlaxMouth.add(mouthLine);
+registerPikaGeometry(mouthLine, 'torus', [0.15, 0.02, Math.PI]);
+
+function makeTooth(side) {
+  const t = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.1, 4), matWhite);
+  t.rotation.z = 0.2; t.rotation.x = -side * 0.2; t.position.set(1.0, 0.14, side * 0.09);
+  snorlaxMouth.add(t); registerPikaGeometry(t, 'cone', [0.04, 0.1]);
+}
+makeTooth(1); makeTooth(-1);
+pika.add(snorlaxMouth);
+
+function makeSnorlaxHand(side) {
+  const h = new THREE.Mesh(new THREE.SphereGeometry(0.24, SET.low?8:12, SET.low?6:10), matBody);
+  h.scale.set(1.4, 0.9, 0.9); h.position.set(0.42, -0.32, side * 0.68);
+  h.rotation.z = -0.4; h.rotation.y = -side * 0.3; h.castShadow = true;
+  pika.add(h); registerPikaGeometry(h, 'sphere', [0.24]);
+  return h;
+}
+
+function makeSnorlaxFoot(side) {
+  const f = new THREE.Mesh(new THREE.SphereGeometry(0.28, SET.low?8:12, SET.low?6:10), matBeige);
+  f.scale.set(1.3, 0.8, 1.2); f.position.set(0.08, -0.85, side * 0.46);
+  f.rotation.z = 0.1; f.castShadow = true;
+  pika.add(f); registerPikaGeometry(f, 'sphere', [0.28]);
+  return f;
+}
+
+const sEarL = makeSnorlaxEar(1), sEarR = makeSnorlaxEar(-1);
+const sEyeL = makeSnorlaxEye(1), sEyeR = makeSnorlaxEye(-1);
+const sHandL = makeSnorlaxHand(1), sHandR = makeSnorlaxHand(-1);
+const sFootL = makeSnorlaxFoot(1), sFootR = makeSnorlaxFoot(-1);
+snorlaxComponents.push(sEarL, sEarR, sEyeL, sEyeR, snorlaxBelly, snorlaxFace, snorlaxMouth, sHandL, sHandR, sFootL, sFootR);
+
+applySkin();
 
 pika.position.set(PX, 0, 0); pika.rotation.y = 0.45; scene.add(pika);
 
@@ -669,7 +856,7 @@ function applyPerformanceMode(){
 $("diffChips").addEventListener("click", e=>{ const b=e.target.closest(".chip"); if(!b) return; e.stopPropagation();
   SET.diff=b.dataset.diff; localStorage.setItem("pika3d_diff",SET.diff); applyDifficulty(); markChips(); });
 $("skinChips").addEventListener("click", e=>{ const b=e.target.closest(".chip"); if(!b) return; e.stopPropagation();
-  SET.skin=b.dataset.skin; localStorage.setItem("pika3d_skin",SET.skin); applySkin(); setGlow(); markChips(); });
+  SET.skin=b.dataset.skin; localStorage.setItem("pika3d_skin",SET.skin); applySkin(); applyDifficulty(); setGlow(); markChips(); });
 $("toggleChips").addEventListener("click", e=>{ const b=e.target.closest(".chip"); if(!b) return; e.stopPropagation();
   const k=b.dataset.tg; SET[k]=!SET[k]; localStorage.setItem("pika3d_"+k, SET[k]?"1":"0");
   if(k==="hc") applyHC();
@@ -734,11 +921,92 @@ function drawFace(x,cx,cy,s){
   const tri=(pts,c)=>{ x.fillStyle=c; x.beginPath(); pts.forEach((p,i)=>{const q=S(p[0],p[1]); i?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1]);}); x.closePath(); x.fill(); };
   const el=(a,b,c,e,col)=>{ const p=S(a,b),q=S(c,e); x.fillStyle=col; x.beginPath(); x.ellipse((p[0]+q[0])/2,(p[1]+q[1])/2,Math.abs(q[0]-p[0])/2,Math.abs(q[1]-p[1])/2,0,0,7); x.fill(); };
   const Y="#"+((SKINS[SET.skin]||SKINS.pika).body).toString(16).padStart(6,"0");
-  tri([[450,360],[388,95],[520,330]],Y); tri([[388,95],[432,120],[452,210]],"#2b2b2b");
-  tri([[550,360],[612,95],[480,330]],Y); tri([[612,95],[568,120],[548,210]],"#2b2b2b");
-  el(232,300,768,800,Y); el(360,470,452,562,"#2b2b2b"); el(548,470,640,562,"#2b2b2b");
-  el(404,486,438,520,"#fff"); el(592,486,626,520,"#fff");
-  el(316,580,418,672,"#ff5a5a"); el(582,580,684,672,"#ff5a5a"); el(484,556,516,584,"#2b2b2b");
+
+  if(SET.skin === "jiggly") {
+    // ---- 胖丁 2D 臉部 ----
+    // 1. 胖丁的貓耳
+    tri([[450,360],[360,110],[500,320]], Y);
+    tri([[360,110],[410,180],[440,280]], "#2b2b2b");
+    tri([[550,360],[640,110],[500,320]], Y);
+    tri([[640,110],[590,180],[560,280]], "#2b2b2b");
+
+    // 2. 圓圓的粉紅身體
+    el(232,300,768,800,Y);
+
+    // 3. 頭頂捲毛
+    el(440,240,560,340,Y);
+    el(460,260,520,320,Y);
+
+    // 4. 超大萌萌眼 (白 + 青 + 雙亮點)
+    // 左眼
+    el(330,440,460,570,"#fff");
+    el(355,460,450,555,"#00a8a8");
+    el(400,470,430,500,"#fff");
+    el(370,515,385,530,"#fff");
+    // 右眼
+    el(540,440,670,570,"#fff");
+    el(550,460,645,555,"#00a8a8");
+    el(570,470,600,500,"#fff");
+    el(615,515,630,530,"#fff");
+
+    // 5. 小巧嘴巴
+    x.strokeStyle = "#7a4a00";
+    x.lineWidth = 6 * s;
+    x.lineCap = "round";
+    x.beginPath();
+    const mouthCenter = S(500, 610);
+    x.arc(mouthCenter[0], mouthCenter[1], 15 * s, 0, Math.PI, false);
+    x.stroke();
+
+  } else if(SET.skin === "snorlax") {
+    // ---- 卡比獸 2D 臉部 ----
+    // 1. 卡比獸小三角耳
+    tri([[450,330],[390,150],[480,300]], Y);
+    tri([[550,330],[610,150],[520,300]], Y);
+
+    // 2. 深藍綠色大身體
+    el(232,300,768,800,Y);
+
+    // 3. 臉部米白色區塊
+    const B = "#fcf2d4";
+    el(310,380,690,720,B);
+    tri([[340,420],[500,320],[660,420]], B);
+
+    // 4. 瞇瞇眼
+    x.strokeStyle = "#2b2b2b";
+    x.lineWidth = 8 * s;
+    x.lineCap = "round";
+    // 左眼
+    x.beginPath();
+    const eL1 = S(380, 480), eL2 = S(450, 480);
+    x.moveTo(eL1[0], eL1[1]); x.lineTo(eL2[0], eL2[1]);
+    x.stroke();
+    // 右眼
+    x.beginPath();
+    const eR1 = S(550, 480), eR2 = S(620, 480);
+    x.moveTo(eR1[0], eR1[1]); x.lineTo(eR2[0], eR2[1]);
+    x.stroke();
+
+    // 5. 下垂的嘴線與小尖牙
+    x.strokeStyle = "#2b2b2b";
+    x.lineWidth = 6 * s;
+    x.lineCap = "round";
+    x.beginPath();
+    const mL1 = S(460, 560), mL2 = S(540, 560);
+    x.moveTo(mL1[0], mL1[1]); x.lineTo(mL2[0], mL2[1]);
+    x.stroke();
+    // 牙齒
+    tri([[465,560],[475,535],[485,560]], "#fff");
+    tri([[515,560],[525,535],[535,560]], "#fff");
+
+  } else {
+    // ---- 原版皮卡丘 2D 臉部 ----
+    tri([[450,360],[388,95],[520,330]],Y); tri([[388,95],[432,120],[452,210]],"#2b2b2b");
+    tri([[550,360],[612,95],[480,330]],Y); tri([[612,95],[568,120],[548,210]],"#2b2b2b");
+    el(232,300,768,800,Y); el(360,470,452,562,"#2b2b2b"); el(548,470,640,562,"#2b2b2b");
+    el(404,486,438,520,"#fff"); el(592,486,626,520,"#fff");
+    el(316,580,418,672,"#ff5a5a"); el(582,580,684,672,"#ff5a5a"); el(484,556,516,584,"#2b2b2b");
+  }
 }
 function shareCard(){
   const C=document.createElement("canvas"); C.width=1080; C.height=1080; const x=C.getContext("2d");
@@ -1018,7 +1286,14 @@ if(new URLSearchParams(location.search).get("autopilot")==="1"){
 /* ===== Service Worker 註冊 + 版本更新通知列 ===== */
 (function(){
   if(!('serviceWorker' in navigator)) return;
-  var APP_VERSION='2026.06.22-5';   // 與 sw.js / version.json 同步
+  var isLocal = (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname === '::1');
+  if (isLocal) {
+    navigator.serviceWorker.getRegistrations().then(function(regs) {
+      regs.forEach(function(reg) { reg.unregister(); });
+    }).catch(function(){});
+    return;
+  }
+  var APP_VERSION='2026.06.23-1';   // 與 sw.js / version.json 同步
   var reloaded=false;
   function showBar(waiting){
     if(document.getElementById('sw-update-bar')) return;

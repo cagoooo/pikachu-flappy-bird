@@ -1,4 +1,4 @@
 {
-    "version":  "2026.06.22-5",
-    "notes":  "v2026.06.22-5: Implement open benchmark, dynamic low-poly switch and visibility sleep"
+    "version":  "2026.06.23-1",
+    "notes":  "新增胖丁與卡比獸角色選擇，加入物理彩蛋與成績卡2D繪製"
 }
