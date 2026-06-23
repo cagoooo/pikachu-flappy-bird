@@ -249,6 +249,231 @@
     0% { transform: scale(1); opacity: 0.85; }
     100% { transform: scale(1.35); opacity: 0; }
   }
+  /* ===================== 海報模態視窗與列印樣式 ===================== */
+  .poster-card-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 480px;
+    padding: 16px;
+  }
+  .poster-card {
+    width: 100%;
+    aspect-ratio: 1 / 1.414; /* A4 比例 */
+    background: url('assets/poster-bg.png') no-repeat center center;
+    background-size: cover;
+    border-radius: 20px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+    position: relative;
+    overflow: hidden;
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.25);
+  }
+  .poster-content {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(15,23,42,0.15) 0%, rgba(15,23,42,0.85) 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 24px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+  }
+  .poster-header {
+    text-align: center;
+    margin-top: 8px;
+  }
+  .poster-title {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    background: linear-gradient(135deg, #fff, #ffe14d);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 4px;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));
+  }
+  .poster-subtitle {
+    font-size: 14px;
+    color: #ffe14d;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .poster-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    margin: auto 0;
+  }
+  .poster-qr-wrapper {
+    background: rgba(255,255,255,0.92);
+    padding: 12px;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 1px solid rgba(255,255,255,0.5);
+  }
+  .poster-qr-wrapper img {
+    width: 160px;
+    height: 160px;
+    display: block;
+  }
+  .poster-qr-tip {
+    color: #334155;
+    font-size: 11px;
+    margin-top: 6px;
+    font-weight: 700;
+    text-shadow: none;
+  }
+  .poster-info {
+    width: 90%;
+    background: rgba(15,23,42,0.6);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .poster-info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+  }
+  .info-label {
+    color: rgba(255,255,255,0.7);
+  }
+  .info-val {
+    font-weight: 700;
+    color: #fff;
+  }
+  #posterBestScore {
+    color: #ffe14d;
+    font-size: 16px;
+  }
+  .poster-footer {
+    text-align: center;
+    font-size: 10px;
+    color: rgba(255,255,255,0.5);
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding-top: 12px;
+  }
+  
+  /* @media print 列印樣式 */
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+    #posterModal, #posterModal * {
+      visibility: visible;
+    }
+    #posterModal {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100vw;
+      height: 100vh;
+      background: none !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
+      z-index: 999999 !important;
+    }
+    .poster-card-container {
+      width: 100% !important;
+      max-width: 100% !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    .poster-card {
+      box-shadow: none !important;
+      border: none !important;
+      border-radius: 0 !important;
+      width: 210mm !important; /* A4 寬 */
+      height: 297mm !important; /* A4 高 */
+      position: absolute;
+      left: 0;
+      top: 0;
+      page-break-after: avoid;
+      page-break-before: avoid;
+    }
+    .poster-content {
+      background: linear-gradient(to bottom, rgba(15,23,42,0.1) 0%, rgba(15,23,42,0.85) 100%) !important;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.8) !important;
+      padding: 40px !important;
+    }
+    .poster-title {
+      font-size: 42px !important;
+    }
+    .poster-subtitle {
+      font-size: 18px !important;
+      letter-spacing: 4px !important;
+    }
+    .poster-qr-wrapper {
+      padding: 20px !important;
+      border-radius: 24px !important;
+    }
+    .poster-qr-wrapper img {
+      width: 280px !important;
+      height: 280px !important;
+    }
+    .poster-qr-tip {
+      font-size: 14px !important;
+      margin-top: 10px !important;
+    }
+    .poster-info {
+      padding: 24px 32px !important;
+      border-radius: 16px !important;
+      gap: 12px !important;
+    }
+    .poster-info-item {
+      font-size: 18px !important;
+    }
+    #posterBestScore {
+      font-size: 24px !important;
+    }
+    .poster-footer {
+      font-size: 14px !important;
+      padding-top: 20px !important;
+    }
+    .poster-actions {
+      display: none !important;
+    }
+  }
+
+  /* 風向 HUD 流光特效 */
+  .wind-hud {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    margin-left: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    animation: windGlow 1.8s infinite ease-in-out;
+  }
+  .wind-hud.none { display: none !important; }
+  @keyframes windGlow {
+    0%, 100% { box-shadow: 0 0 4px rgba(255,255,255,0.2); }
+    50% { box-shadow: 0 0 12px rgba(255,225,77,0.5); border-color: rgba(255,225,77,0.5); }
+  }
 </style>
 <script type="importmap">
 {
@@ -266,6 +491,7 @@
   <div id="hud">
     <div id="score">0</div>
     <div id="combo"></div>
+    <div class="wind-hud none" id="windIndicator"></div>
     <div id="items"></div>
     <div id="banner"></div>
     <div id="meta"><span class="scene" id="sceneName">晴空</span><br>最佳 <span id="best">0</span></div>
@@ -370,6 +596,47 @@
     <a href="https://www.smes.tyc.edu.tw/modules/tadnews/page.php?ncsn=11&nsn=16#a5" target="_blank" rel="noopener">阿凱老師</a>｜桃園市龍潭區石門國民小學
   </div>
 
+  <!-- 班級海報動態列印模態視窗 -->
+  <div class="overlay hidden" id="posterModal" style="z-index: 2500;">
+    <div class="poster-card-container">
+      <div class="poster-card" id="posterCard">
+        <div class="poster-content">
+          <div class="poster-header">
+            <h1 class="poster-title">皮卡丘天空大冒險 3D</h1>
+            <p class="poster-subtitle">⚡ 班級雲端積分挑戰賽 ⚡</p>
+          </div>
+          <div class="poster-body">
+            <div class="poster-qr-wrapper">
+              <img id="posterQR" src="" alt="QR Code">
+              <p class="poster-qr-tip">掃描二維碼立即挑戰 👆</p>
+            </div>
+            <div class="poster-info">
+              <div class="poster-info-item">
+                <span class="info-label">🏫 挑戰學校</span>
+                <span class="info-val">桃園市石門國小</span>
+              </div>
+              <div class="poster-info-item">
+                <span class="info-label">🏆 目前班級最高</span>
+                <span class="info-val"><span id="posterBestScore">0</span> 分</span>
+              </div>
+              <div class="poster-info-item">
+                <span class="info-label">👤 創紀錄玩家</span>
+                <span class="info-val" id="posterBestPlayer">無</span>
+              </div>
+            </div>
+          </div>
+          <div class="poster-footer">
+            Made with ❤️ by 阿凱老師 ｜ 國小資訊科技教學專用
+          </div>
+        </div>
+      </div>
+      <div class="poster-actions" style="display: flex; gap: 12px; margin-top: 16px; width: 100%; max-width: 420px;">
+        <button class="cta" id="posterPrintBtn" style="flex: 1; margin: 0;">🖨️ 列印海報</button>
+        <button class="btn-lite" id="posterCloseBtn" style="flex: 1; margin: 0;">關閉</button>
+      </div>
+    </div>
+  </div>
+
   <!-- iOS Safari 安裝引導模態窗 -->
   <div class="ios-install-overlay hidden" id="iosInstallOverlay">
     <div class="ios-install-card">
@@ -391,6 +658,9 @@ const SCENES = [
   { name:"極光", sky:0x0f3d3a, fog:0x166054, pipe:0x2bd4a8, ground:0x1f6f5c, light:0xc0ffe9, amb:0x2fa888, wx:{color:0xa8ffe0, dir:-1, spd:1.0, size:0.07} },
   { name:"櫻花", sky:0xffc2e0, fog:0xffd9ec, pipe:0xe57aa8, ground:0xf2a8c6, light:0xffe2f0, amb:0xff9ec8, wx:{color:0xffd0e8, dir:-1, spd:2.0, size:0.12} },
   { name:"深海", sky:0x0a3a6b, fog:0x135594, pipe:0x19a0c9, ground:0x10708f, light:0xc6ecff, amb:0x2a78b8, wx:{color:0xcdefff, dir:1, spd:1.6, size:0.10} },
+  { name:"火山", sky:0x2a0f0f, fog:0x421c1c, pipe:0xd34727, ground:0x3a1515, light:0xff6a3d, amb:0xff3d00, wx:{color:0xffaa44, dir:-1, spd:1.8, size:0.08} },
+  { name:"太空", sky:0x070b19, fog:0x0f152d, pipe:0x2963ff, ground:0x161e38, light:0x94b4ff, amb:0x1b365d, wx:{color:0xffffff, dir:-1, spd:0.3, size:0.04} },
+  { name:"冰川", sky:0xd2f3fc, fog:0xe3f7fd, pipe:0x48cae4, ground:0xb5e2fa, light:0xe0f2fe, amb:0x90e0ef, wx:{color:0xffffff, dir:-1, spd:2.2, size:0.09} },
 ];
 
 // ===================== 難度 / 角色 設定 =====================
@@ -450,6 +720,7 @@ const LANGS = {
     share: "📸 下載成績卡分享",
     restart: "再玩一次 ↻",
     backToMenu: "🏠 回到主選單",
+    sc_晴空: "晴空", sc_黃昏: "黃昏", sc_星夜: "星夜", sc_極光: "極光", sc_櫻花: "櫻花", sc_深海: "深海", sc_火山: "火山", sc_太空: "太空", sc_冰川: "冰川",
     rank_title: "🏆 班級排行榜",
     tab_top: "總榜",
     tab_today: "今日",
@@ -498,6 +769,7 @@ const LANGS = {
     share: "📸 Download Score Card",
     restart: "Restart ↻",
     backToMenu: "🏠 Back to Menu",
+    sc_晴空: "Sunny Sky", sc_黃昏: "Twilight", sc_星夜: "Starry Night", sc_極光: "Aurora", sc_櫻花: "Sakura", sc_深海: "Deep Sea", sc_火山: "Volcano", sc_太空: "Outer Space", sc_冰川: "Glacier",
     rank_title: "🏆 Leaderboard",
     tab_top: "Top",
     tab_today: "Today",
@@ -630,7 +902,8 @@ function updateLanguage() {
   // HUD
   const meta = document.getElementById("meta");
   if (meta) {
-    meta.innerHTML = `<span class="scene" id="sceneName">${document.getElementById("sceneName") ? document.getElementById("sceneName").innerText : "晴空"}</span><br>${dict.best_label.trim()} <span id="best">${localStorage.getItem("pika3d_best") || 0}</span>`;
+    const scName = (typeof sceneIdx !== "undefined" && SCENES[sceneIdx]) ? (dict["sc_" + SCENES[sceneIdx].name] || SCENES[sceneIdx].name) : (dict.sc_晴空 || "晴空");
+    meta.innerHTML = `<span class="scene" id="sceneName">${scName}</span><br>${dict.best_label.trim()} <span id="best">${localStorage.getItem("pika3d_best") || 0}</span>`;
   }
   
   // 更新語系切換按鈕文字
@@ -1196,6 +1469,41 @@ let combo=0, invincT=0, dblT=0, shieldOn=false;
 let playStartMs=0, lastPlaySec=0;
 let bossActive=false, bossPipesLeft=0, bossMesh=null, bossT=0;
 let best = +(localStorage.getItem("pika3d_best")||0);
+let windType = "none"; // "none" | "head" | "tail"
+let windForce = 0;
+
+function updateWindState() {
+  if (score < 20) {
+    windType = "none";
+    windForce = 0;
+    const ind = $("windIndicator");
+    if (ind) ind.classList.add("none");
+    return;
+  }
+  const r = Math.random();
+  const ind = $("windIndicator");
+  if (r < 0.25) {
+    windType = "none";
+    windForce = 0;
+    if (ind) ind.classList.add("none");
+  } else if (r < 0.62) {
+    windType = "head";
+    windForce = 1.2 + Math.random() * 0.8;
+    if (ind) {
+      ind.className = "wind-hud";
+      ind.innerText = SET.lang === "en" ? "⬅ Headwind" : "⬅ 強逆風";
+    }
+    banner(SET.lang === "en" ? "💨 Headwind! Flapping is floatier but slower!" : "💨 遭遇強逆風！起跳變輕但前進減慢！", 2000);
+  } else {
+    windType = "tail";
+    windForce = 1.0 + Math.random() * 0.6;
+    if (ind) {
+      ind.className = "wind-hud";
+      ind.innerText = SET.lang === "en" ? "➡ Tailwind" : "➡ 順風疾馳";
+    }
+    banner(SET.lang === "en" ? "💨 Tailwind! Flying faster but heavier gravity!" : "💨 順風疾馳！移速變快但重力感加重！", 2000);
+  }
+}
 
 const $ = id => document.getElementById(id);
 $("best").textContent = best; $("bestStart").textContent = best;
@@ -1210,9 +1518,14 @@ function applyScene(t){
 function setScene(idx, instant){
   transFrom = instant ? idx : sceneIdx; transTo = idx; sceneIdx = idx;
   trans = instant ? 1 : 0;
-  $("sceneName").textContent = SCENES[idx].name;
+  const dict = LANGS[SET.lang] || LANGS.zh;
+  const scName = dict["sc_" + SCENES[idx].name] || SCENES[idx].name;
+  $("sceneName").textContent = scName;
   if(instant) applyScene(1);
   applyWeather();
+  if(!instant) {
+    banner((SET.lang === "en" ? "🌍 World: " : "🌍 場景已切換：") + scName, 1800);
+  }
 }
 
 function clearItems(){ items.forEach(m=>scene.remove(m)); items.length=0; }
@@ -1361,6 +1674,8 @@ function reset(){
   for(let i=0;i<4;i++) makePipe(SPAWN_X + i*SPAWN_DX);
   pika.position.set(PX, 0.5, 0); pika.rotation.z=0; pika.rotation.x=0;
   setScene(0, true); setGlow();
+  windType = "none"; windForce = 0;
+  if($("windIndicator")) $("windIndicator").classList.add("none");
   $("score").textContent = 0; updateComboHUD(); updateItemsHUD(); updateSkillHUD();
 }
 
@@ -1587,7 +1902,65 @@ function loadLB(){
 }
 ["tabsStart","tabsOver"].forEach(id=>{ const el=$(id); if(el) el.addEventListener("click", e=>{
   e.stopPropagation(); const b=e.target.closest(".lbtab"); if(!b) return; lbTab=b.dataset.tab; showLB(); }); });
-["classInput","shareBtn","posterLink"].forEach(id=>{ const el=$(id); if(el) el.addEventListener("click", e=>e.stopPropagation()); });
+["classInput","shareBtn"].forEach(id=>{ const el=$(id); if(el) el.addEventListener("click", e=>e.stopPropagation()); });
+
+// ===================== 班級動態海報邏輯 =====================
+const posterModal = $("posterModal");
+const posterQR = $("posterQR");
+const posterCloseBtn = $("posterCloseBtn");
+const posterPrintBtn = $("posterPrintBtn");
+
+function openPosterModal(e) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  const currentUrl = window.location.href;
+  posterQR.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(currentUrl)}`;
+  
+  let bestScore = localStorage.getItem("pika3d_best") || 0;
+  let bestPlayer = localStorage.getItem("pika3d_nick") || (SET.lang === "en" ? "None" : "無");
+  
+  if (typeof lastLB !== "undefined" && lastLB && lastLB.top && lastLB.top.length > 0) {
+    const topRecord = lastLB.top[0];
+    if (Number(topRecord.score) > Number(bestScore)) {
+      bestScore = topRecord.score;
+      bestPlayer = `${topRecord.name} (班級: ${topRecord.class || (SET.lang === "en" ? "Unknown" : "未知")})`;
+    } else {
+      let cls = localStorage.getItem("pika3d_class") || "";
+      if (cls) bestPlayer = `${bestPlayer} (班級: ${cls})`;
+    }
+  } else {
+    let cls = localStorage.getItem("pika3d_class") || "";
+    if (cls) bestPlayer = `${bestPlayer} (班級: ${cls})`;
+  }
+
+  $("posterBestScore").textContent = bestScore;
+  $("posterBestPlayer").textContent = bestPlayer;
+  posterModal.classList.remove("hidden");
+}
+
+function closePosterModal() {
+  posterModal.classList.add("hidden");
+}
+
+if ($("posterLink")) {
+  $("posterLink").addEventListener("click", openPosterModal);
+}
+if (posterCloseBtn) {
+  posterCloseBtn.addEventListener("click", closePosterModal);
+}
+if (posterPrintBtn) {
+  posterPrintBtn.addEventListener("click", () => {
+    window.print();
+  });
+}
+if (posterModal) {
+  posterModal.addEventListener("click", (e) => {
+    if (e.target === posterModal) closePosterModal();
+  });
+}
+
 function submitScore(){
   const inp=$("nameInput"), ci=$("classInput");
   let name=(inp.value||"").trim().slice(0,12);
@@ -1847,7 +2220,13 @@ function update(dt){
     }
   }
 
-  vy += GRAVITY*dt; pika.position.y += vy*dt;
+  let currentGravity = GRAVITY;
+  if (windType === "head") {
+    currentGravity += windForce * 3.5;
+  } else if (windType === "tail") {
+    currentGravity -= windForce * 3.0;
+  }
+  vy += currentGravity*dt; pika.position.y += vy*dt;
   pika.rotation.z = Math.max(-0.6, Math.min(0.5, vy*0.06));
   pika.rotation.y = 0.45 + Math.sin(performance.now()*0.004)*0.06;
   tail.rotation.z = 0.5 + Math.sin(performance.now()*0.01)*0.12;
@@ -1869,13 +2248,51 @@ function update(dt){
     }
   }
 
-  // 柱子移動 + 擺動
+  // 柱子移動 + 擺動 + 伸縮洞口
   pipes.forEach(p=>{
-    p.position.x -= speed*dt;
+    let currentSpeed = speed;
+    if (windType === "head") {
+      currentSpeed -= windForce * 0.7;
+    } else if (windType === "tail") {
+      currentSpeed += windForce * 0.8;
+    }
+    p.position.x -= currentSpeed*dt;
+    
     if(p.userData.osc){
       const o=p.userData.osc;
       const wFactor = (singTimer > 0) ? 0.25 : 1.0;
       p.position.y = o.amp*Math.sin(t*o.w*wFactor+o.ph);
+    }
+    
+    // 伸縮洞口機制：分數高於 15 且水管未被摧毀
+    if (score >= 15 && !p.userData.destroyed) {
+      const oscPhase = p.userData.osc ? p.userData.osc.ph : 0;
+      const gapOffset = Math.sin(t * 1.5 + oscPhase) * 0.4;
+      p.userData.currentGapHalf = GAP_HALF - Math.abs(gapOffset);
+      
+      const offset = Math.abs(gapOffset);
+      if (p.children.length >= 4) {
+        if (p.userData.initY === undefined) {
+          p.userData.initY = {
+            topCol: p.children[0].position.y,
+            topCap: p.children[1].position.y,
+            botCol: p.children[2].position.y,
+            botCap: p.children[3].position.y
+          };
+        }
+        p.children[0].position.y = p.userData.initY.topCol - offset;
+        p.children[1].position.y = p.userData.initY.topCap - offset;
+        p.children[2].position.y = p.userData.initY.botCol + offset;
+        p.children[3].position.y = p.userData.initY.botCap + offset;
+      }
+    } else {
+      p.userData.currentGapHalf = GAP_HALF;
+      if (p.userData.initY && p.children.length >= 4) {
+        p.children[0].position.y = p.userData.initY.topCol;
+        p.children[1].position.y = p.userData.initY.topCap;
+        p.children[2].position.y = p.userData.initY.botCol;
+        p.children[3].position.y = p.userData.initY.botCap;
+      }
     }
   });
 
@@ -1899,7 +2316,18 @@ function update(dt){
       $("score").textContent = score; updateComboHUD();
       burst(PX+0.5, pika.position.y, perfect?0xffe14d:0xffffff, perfect?8:4, 2.5);
       if(combo>0 && combo%5===0) burst(PX, pika.position.y, 0xff5ad6, 14, 4);
-      if(score%10===0){ setScene((sceneIdx+1)%SCENES.length, false); trans=0; sScene(); }
+      if(score%10===0){
+        let nextIdx;
+        do {
+          nextIdx = Math.floor(Math.random() * SCENES.length);
+        } while(nextIdx === sceneIdx);
+        setScene(nextIdx, false);
+        trans=0;
+        sScene();
+        updateWindState();
+      } else if (score === 20) {
+        updateWindState();
+      }
       speed = BASE_SPEED + Math.min(2.0, score*0.03);
       if(bossActive){ bossPipesLeft--; if(bossPipesLeft<=0) endBoss(); }
       else if(score>0 && score%50===0) startBoss();
@@ -1912,7 +2340,13 @@ function update(dt){
 
   // 道具移動 + 收集
   for(let i=items.length-1;i>=0;i--){ const m=items[i];
-    m.position.x -= speed*dt; m.rotation.y += dt*3; m.rotation.x += dt*1.5;
+    let currentSpeed = speed;
+    if (windType === "head") {
+      currentSpeed -= windForce * 0.7;
+    } else if (windType === "tail") {
+      currentSpeed += windForce * 0.8;
+    }
+    m.position.x -= currentSpeed*dt; m.rotation.y += dt*3; m.rotation.x += dt*1.5;
     m.scale.setScalar(1 + Math.sin(t*4)*0.12);
     if(m.position.x < -16){ scene.remove(m); items.splice(i,1); continue; }
     const dx=m.position.x-pika.position.x, dy=m.position.y-pika.position.y;
@@ -1931,7 +2365,8 @@ function update(dt){
         if(p.userData.destroyed) continue;
         if(Math.abs(p.position.x - PX) < PIPE_R + HIT_R){
           const gy = pipeGapY(p);
-          if(pika.position.y - HIT_R < gy - GAP_HALF || pika.position.y + HIT_R > gy + GAP_HALF){
+          const curGap = (p.userData.currentGapHalf !== undefined) ? p.userData.currentGapHalf : GAP_HALF;
+          if(pika.position.y - HIT_R < gy - curGap || pika.position.y + HIT_R > gy + curGap){
             if(bodySlamActive) {
               p.userData.destroyed = true;
               burst(p.position.x, gy, 0x4ad6ff, 35, 7);
@@ -2114,7 +2549,7 @@ if(new URLSearchParams(location.search).get("autopilot")==="1"){
     }).catch(function(){});
     return;
   }
-  var APP_VERSION='2026.06.23-8';   // 與 sw.js / version.json 同步
+  var APP_VERSION='2026.06.23-9';   // 與 sw.js / version.json 同步
   var reloaded=false;
   function showBar(waiting){
     if(document.getElementById('sw-update-bar')) return;
