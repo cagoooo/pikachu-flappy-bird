@@ -1434,6 +1434,8 @@ pika.position.set(PX, 0, 0); pika.rotation.y = 0.45; scene.add(pika);
 
 // ===================== 柱子 =====================
 const pipeMat = new THREE.MeshStandardMaterial({ color:0x5cb24a, roughness:0.6 });
+// 會上下擺動的「移動柱」改用橘紅色 + 微發光，讓玩家一眼辨識、提前追蹤洞口
+const oscPipeMat = new THREE.MeshStandardMaterial({ color:0xe8763a, roughness:0.55, emissive:0x3a1500, emissiveIntensity:0.35 });
 const pipes = [];
 let lastGapY = 0;
 function makePipe(x){
@@ -1441,18 +1443,25 @@ function makePipe(x){
   const MAX_DELTA = 2.6, RANGE = 3.0;
   let gy = lastGapY + (Math.random()*2-1)*MAX_DELTA;
   gy = Math.max(-RANGE, Math.min(RANGE, gy));
-  lastGapY = gy;
-  g.userData.gapY = gy; g.userData.passed = false;
   // 障礙變化：分數高 / 挑戰難度時，部分柱子上下擺動
   const moving = bossActive || (SET.diff==="hard" && score>=6) || score>=12;
-  g.userData.osc = (moving && Math.random()<0.5) ? { amp:0.7+Math.random()*0.9, w:1.0+Math.random()*0.8, ph:Math.random()*6.28 } : null;
-  const mkCol = (cy, h) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(PIPE_R, PIPE_R, h, SET.low ? 8 : 20), pipeMat);
+  // 擺動幅度加大到 1.4~2.5（原本 0.7~1.6 太小，洞口永遠比擺幅寬，玩家待在中央就撞不到）
+  const osc = (moving && Math.random()<0.5) ? { amp:1.4+Math.random()*1.1, w:1.2+Math.random()*0.9, ph:Math.random()*6.28 } : null;
+  // 移動柱：收斂洞口中心，避免擺到天花板/地板外變得不公平或無解
+  if(osc){ const lim = RANGE - osc.amp*0.5; gy = Math.max(-lim, Math.min(lim, gy)); }
+  lastGapY = gy;
+  g.userData.gapY = gy; g.userData.passed = false;
+  g.userData.osc = osc;
+  const mat = osc ? oscPipeMat : pipeMat;
+  // 柱身要比擺動幅度更長，確保任何瞬間都封死上下緣，玩家無法趁柱子擺高時從縫隙鑽過
+  const margin = osc ? (osc.amp + 0.8) : 2;
+  const mkCol = (cy, h) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(PIPE_R, PIPE_R, h, SET.low ? 8 : 20), mat);
     m.position.set(0, cy, 0); m.castShadow = true; m.receiveShadow = true; return m; };
-  const mkCap = (cy) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(PIPE_R*1.18, PIPE_R*1.18, 0.5, SET.low ? 8 : 20), pipeMat);
+  const mkCap = (cy) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(PIPE_R*1.18, PIPE_R*1.18, 0.5, SET.low ? 8 : 20), mat);
     m.position.set(0, cy, 0); m.castShadow = true; return m; };
-  const topH = (CEIL_Y + 2) - (gy + GAP_HALF);
+  const topH = (CEIL_Y + margin) - (gy + GAP_HALF);
   g.add(mkCol(gy + GAP_HALF + topH/2, topH)); g.add(mkCap(gy + GAP_HALF + 0.25));
-  const botH = (gy - GAP_HALF) - (FLOOR_Y - 2);
+  const botH = (gy - GAP_HALF) - (FLOOR_Y - margin);
   g.add(mkCol(gy - GAP_HALF - botH/2, botH)); g.add(mkCap(gy - GAP_HALF - 0.25));
   g.position.x = x; scene.add(g); pipes.push(g);
   // 道具：分數≥3 後機率在 gap 附近生成
