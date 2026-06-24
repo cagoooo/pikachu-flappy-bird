@@ -1886,26 +1886,29 @@ function playThudSound() {
 }
 
 function castThunderbolt() {
-  const targetPipe = pipes.find(p => p.position.x > PX && !p.userData.destroyed);
-  if (targetPipe) {
-    targetPipe.userData.destroyed = true;
-    burst(targetPipe.position.x, targetPipe.userData.gapY || 0, 0xffd54a, 45, 8.5);
+  // 十萬伏特：清掉畫面上「前方所有」柱子，而非只炸最前一根；
+  // 否則後面的柱子還是實心，玩家以為清空了卻撞死，會誤判成 BUG
+  const targets = pipes.filter(p => !p.userData.destroyed && p.position.x > PX - PIPE_R);
+  if (targets.length) {
     beep(880, 0.12, "sawtooth", 0.15, 2200);
     setTimeout(() => beep(1200, 0.16, "sine", 0.12, 440), 60);
-    banner("⚡ 十萬伏特！前方柱子碎裂！", 2000);
-    let sc = 1.0;
-    const shrinkInterval = setInterval(() => {
-      sc -= 0.15;
-      if (sc <= 0) {
-        sc = 0;
-        targetPipe.visible = false;
-        clearInterval(shrinkInterval);
-      }
-      targetPipe.scale.set(sc, sc, sc);
-    }, 30);
+    banner(SET.lang === "en" ? "⚡ 100,000 Volts! All pipes ahead shattered!" : "⚡ 十萬伏特！前方柱子全數碎裂！", 2000);
+    targets.forEach((p, i) => {
+      // 立刻標記摧毀，碰撞判定即時略過，縮放動畫沒跑完也不會誤撞致死
+      p.userData.destroyed = true;
+      setTimeout(() => {                       // 由近到遠連鎖爆裂的視覺節奏
+        burst(p.position.x, pipeGapY(p), 0xffd54a, 38, 7.5);
+        let sc = p.scale.x;
+        const shrinkInterval = setInterval(() => {
+          sc -= 0.15;
+          if (sc <= 0) { sc = 0; p.visible = false; clearInterval(shrinkInterval); }
+          p.scale.set(sc, sc, sc);
+        }, 30);
+      }, i * 90);
+    });
   } else {
     skillCharge = maxCharge;
-    banner("⚡ 附近沒有障礙物！大招充能保留", 1600);
+    banner(SET.lang === "en" ? "⚡ No obstacles nearby! Charge saved" : "⚡ 附近沒有障礙物！大招充能保留", 1600);
   }
 }
 
