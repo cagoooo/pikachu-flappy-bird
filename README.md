@@ -1,5 +1,7 @@
 # ⚡ 皮卡丘天空大冒險 Pika Sky Adventure
 
+🌐 **線上使用：[皮卡丘天空大冒險](https://cagoooo.github.io/pikachu-flappy-bird/)**
+
 一款有質感、好玩、可直接上線的單檔 HTML **3D 皮卡丘 Flappy Bird** 課堂教學小遊戲。點擊畫面或按空白鍵讓皮卡丘起飛，閃過電線桿，每得 10 分切換一個新場景。
 
 ## ✨ 特色
@@ -30,7 +32,7 @@ Made with ❤️ by 阿凱老師｜桃園市龍潭區石門國民小學
 - Repository：`cagoooo/pikachu-flappy-bird`
 - 可見性：公開
 - 主要技術：HTML
-- 線上入口：未在 GitHub repository metadata 設定
+- 線上入口：<https://cagoooo.github.io/pikachu-flappy-bird/>
 
 ### 可以怎麼應用
 
